@@ -100,5 +100,6 @@
   <VirtualDirectory Name="lua">
     <File Name="lua/init.lua"/>
     <File Name="lua/env.lua"/>
+    <File Name="lua/capture.lua"/>
   </VirtualDirectory>
 </CodeLite_Project>
