@@ -27,7 +27,7 @@ local function initializeRobot(self, velocity_scaling)
      {563, 0, 322},
      {0, 562, 240},
      {0, 0, 1}})
-  local depthcam=egomoTools.structureio:new(camIntrinsicsIR)
+  local depthcam = egomoTools.structureio:new(camIntrinsicsIR)
   depthcam:Connect()
   depthcam:SetProjectorStatus(false)
   depthcam:SetIRresolution(640, 480)

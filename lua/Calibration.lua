@@ -164,7 +164,7 @@ function Calibration:addImage(image, robotPose, jointState, patternId)
   image_item.patternPoints2d = points:clone()
   table.insert(self.images, image_item)
   
-  --print(self.images[#self.images])
+--  print(self.images[#self.images])
 
   return true
 end
@@ -182,46 +182,6 @@ function Calibration:runHandEyeCalibration()
 end
 
 
-function Calibration:loadPointCache()
-  if self.pointCachePath ~= nil and self.pointCacheEnabled and path.exists(self.pointCachePath) then
-    self.pointCache = torch.load(self.pointCachePath)
-    print('point cache loaded: '.. countKeys(self.pointCache)..' entries.')
-  end
-end
-
-
-function Calibration:savePointCache()
-  if self.pointCachePath ~= nil and self.pointCacheEnabled then
-    torch.save(self.pointCachePath, self.pointCache)
-  end
-end
-
-
-function Calibration:getPatternPointsFromCache(image)
-  local hash_value = torch.sum(image)
-  local hash = string.format("%d", hash_value)
-  
-  local x = self.pointCache[hash]
-  if x == nil then  
-    return false
-  else
-    return true, x[1], x[2]
-  end
-end
-
-
-function Calibration:addPatternPointsToCache(image, found, points)
-  local hash_value = torch.sum(image)
-  local hash = string.format("%d", hash_value)
-  
-  if self.pointCache[hash] ~= nil then
-    error("Cache Collision - should never happen!")
-  end
-
-  self.pointCache[hash] = { found, points }
-end
-
-
 function Calibration:prepareBAStructureForPattern(patternID, measurementsE, jointPointIndicesE, jointStatesE, points3dE)
   local indices = {}
   for i = 1,#self.images do
@@ -231,6 +191,7 @@ function Calibration:prepareBAStructureForPattern(patternID, measurementsE, join
   end
   return self:prepareBAStructureWithImageIDs(indices, measurementsE, jointPointIndicesE, jointStatesE, points3dE)
 end
+
 
 -- this function adds measurements, cameras and points3d for a given patternID to the last 3 variables.
 -- if they are nil, we create new torch.tensors
@@ -243,6 +204,7 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
   local intrinsics = self.intrinsics:clone()
   local distCoeffs = self.distCoeffs:clone()
   local handEye = self.handEye:clone()
+
   local robotModel, robotJointDir = self.robotModel.dh, self.robotModel.joint_direction
  
   if calibrationData ~= nil then
@@ -254,6 +216,13 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
   else
     print("Using GLOABAL robotParameters!") 
   end
+
+  print('Using handEye:')
+  print(handEye)
+  print('Using robotModel:')
+  print(robotModel)
+  print('Using intrinsics:')
+  print(intrinsics)
 
   if measurementsE ~= nil or jointStatesE ~= nil or points3dE ~= nil then
     assert(measurementsE)
@@ -307,8 +276,8 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
     nCnt = nCnt + 1
     jointStates[{nCnt, {1,6}}] = self.images[indices[i]].jointStates:view(1,6):clone()
     local robotPoseWithJointStates = forward_kinematic(self.images[indices[i]].jointStates,robotModel,robotJointDir)
-    local c = intrinsics * (torch.inverse(robotPoseWithJointStates * handEye)[{{1,3},{}}])
-    table.insert(P,c)
+    local c = intrinsics * torch.inverse(robotPoseWithJointStates * handEye)[{{1,3},{}}]
+    table.insert(P, c)
   end
   
   --- make an initial guess for the 3d points by
@@ -321,6 +290,11 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
     if #P ~= #meas then
       error(string.format("Measurements must be same size as camera poses (Poses %d, Measurement: s%d ).", #P, #meas))
     end
+
+    --[[print('P')
+    print(P[1])
+    print("meas")
+    print(meas[1])]]
 
     local s, X = xamla3d.linearTriangulation(P, meas)
     if s ~= true then
@@ -391,79 +365,80 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
 
     local jointStatesOptimized = jointStates:clone()
     local init_error = calib.optimizeDH(intrinsics,
-                   distCoeffs,
-                   handEyeInv,   
-                   jointStatesOptimized,
-                   robotModel,
-                   points3d,
-                   observations,
-                   jointPointIndices,
-                   true,     -- optimize_hand_eye
-                   true,     -- optimize_points
-                   false,     -- optimize_robot_model_theta
-                   false,     -- optimize_robot_model_d
-                   false,     -- optimize_robot_model_a
-                   false,     -- optimize_robot_model_alpha
-                   true      -- optimize_joint_states
-                   )
+      distCoeffs,
+      handEyeInv,
+      jointStatesOptimized,
+      robotModel,
+      points3d,
+      observations,
+      jointPointIndices,
+      true,      -- optimize_hand_eye
+      true,      -- optimize_points
+      false,     -- optimize_robot_model_theta
+      false,     -- optimize_robot_model_d
+      false,     -- optimize_robot_model_a
+      false,     -- optimize_robot_model_alpha
+      true       -- optimize_joint_states
+    )
 
     print("Error after optimizing HandEye:                 "..init_error)     
 
-
     local init_error = calib.optimizeDH(intrinsics,
-                   distCoeffs,
-                   handEyeInv,   
-                   jointStates,
-                   robotModel,
-                   points3d,
-                   observations,
-                   jointPointIndices,
-                   false,     -- optimize_hand_eye
-                   true,     -- optimize_points
-                   false,     -- optimize_robot_model_theta
-                   false,     -- optimize_robot_model_d
-                   false,     -- optimize_robot_model_a
-                   false,     -- optimize_robot_model_alpha
-                   false      -- optimize_joint_states
-                   )
+      distCoeffs,
+      handEyeInv,
+      jointStates,
+      robotModel,
+      points3d,
+      observations,
+      jointPointIndices,
+      false,     -- optimize_hand_eye
+      true,      -- optimize_points
+      false,     -- optimize_robot_model_theta
+      false,     -- optimize_robot_model_d
+      false,     -- optimize_robot_model_a
+      false,     -- optimize_robot_model_alpha
+      false      -- optimize_joint_states
+    )
                    
-     print("Error Initial:                                     " .. init_error)                   
+    print("Error Initial:                                     " .. init_error)
     
     local training_error = calib.optimizeDH(intrinsics,
-                   distCoeffs,
-                   handEyeInv,   
-                   jointStates,
-                   robotModel,
-                   points3d,
-                   observations,
-                   jointPointIndices,
-                   false,     -- optimize_hand_eye
-                   true,     -- optimize_points
-                   true,     -- optimize_robot_model_theta
-                   false,     -- optimize_robot_model_d
-                   false,     -- optimize_robot_model_a
-                   true,     -- optimize_robot_model_alpha
-                   false      -- optimize_joint_states
-                   )
-      optimization_path  = optimization_path .. "(points + theta + alpha)" 
+      distCoeffs,
+      handEyeInv,
+      jointStates,
+      robotModel,
+      points3d,
+      observations,
+      jointPointIndices,
+      false,     -- optimize_hand_eye
+      true,     -- optimize_points
+      true,     -- optimize_robot_model_theta
+      false,     -- optimize_robot_model_d
+      false,     -- optimize_robot_model_a
+      true,     -- optimize_robot_model_alpha
+      false      -- optimize_joint_states
+    )
+
+    optimization_path  = optimization_path .. "(points + theta + alpha)"
       
     local training_error = calib.optimizeDH(intrinsics,
-                   distCoeffs,
-                   handEyeInv,   
-                   jointStates,
-                   robotModel,
-                   points3d,
-                   observations,
-                   jointPointIndices,
-                   false,     -- optimize_hand_eye
-                   true,     -- optimize_points
-                   false,     -- optimize_robot_model_theta
-                   true,     -- optimize_robot_model_d
-                   true,     -- optimize_robot_model_a
-                   false,     -- optimize_robot_model_alpha
-                   false      -- optimize_joint_states
-                   )
-      optimization_path  = optimization_path .. "(points + d + a)" 
+      distCoeffs,
+      handEyeInv,
+      jointStates,
+      robotModel,
+      points3d,
+      observations,
+      jointPointIndices,
+      false,     -- optimize_hand_eye
+      true,     -- optimize_points
+      false,     -- optimize_robot_model_theta
+      true,     -- optimize_robot_model_d
+      true,     -- optimize_robot_model_a
+      false,     -- optimize_robot_model_alpha
+      false      -- optimize_joint_states
+    )
+
+    optimization_path  = optimization_path .. "(points + d + a)"
 
  --[[
       local training_error = calib.optimizeDH(intrinsics,
@@ -500,7 +475,6 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
        observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal = self:prepareBAStructureWithImageIDs(idxValidation, observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal, calibData)
     end
   
-
     local validation_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,

@@ -182,8 +182,8 @@ function xamla3d.linearTriangulation (P, measurements)
 
   local m = #measurements
 
-  local A = torch.DoubleTensor(2*#measurements,3):zero()
-  local B = torch.DoubleTensor(2*#measurements,1):zero()
+  local A = torch.zeros(2*#measurements,3)
+  local B = torch.zeros(2*#measurements,1)
 
   for i = 1,#P do
     local p = P[i]
@@ -200,10 +200,9 @@ function xamla3d.linearTriangulation (P, measurements)
 
     B[{(i-1)*2+1,1}] = p[{1,4}] - x * p[{3,4}]
     B[{(i-1)*2+2,1}] = p[{2,4}] - y * p[{3,4}]
-     
   end
   
-  local AtA = torch.DoubleTensor(3,3):zero()
+  local AtA = torch.zeros(3,3)
   local Atb = A:t() * B
   AtA = A:t() * A
   local X = torch.inverse(AtA) * Atb
@@ -213,8 +212,8 @@ end
 
 
 -- Projects a point X (in World coordinates) to camera P 
-function xamla3d.projectPoint (K,Rt, X)
-  local Xw = torch.DoubleTensor(4):zero()
+function xamla3d.projectPoint (K, Rt, X)
+  local Xw = torch.zeros(4)
   Xw:view(4,1)[{{1,3},1}] = X:view(3,1)[{{1,3},1}]  
   Xw[4] = 1
   local xc = K *Rt*Xw
