@@ -254,8 +254,9 @@ struct SnavelyReprojectionError {
     // Apply second and fourth order radial distortion.
     const T& l1 = distortion[0];
     const T& l2 = distortion[1];
+    const T& l3 = distortion[2];
     T r2 = xp*xp + yp*yp;
-    T dist = T(1.0) + r2  * (l1 + l2  * r2);
+    T dist = T(1.0) + r2  * (l1 + l2  * r2 + l3*r2*r2);
 
     // Compute final projected point position.
     // const T& focal = robot[6];
@@ -282,7 +283,7 @@ struct SnavelyReprojectionError {
   // the client code.
   static ceres::CostFunction* Create(const double observed_x,
                                      const double observed_y) {
-    return (new ceres::AutoDiffCostFunction<SnavelyReprojectionError, 2, 6,6,6,6, 6,6, 3, 1,2,2>(    // observed, robot_model_{theta,d,a,alpha},joint_state, handeye,    3dpoint,   focal,distortion,pp
+    return (new ceres::AutoDiffCostFunction<SnavelyReprojectionError, 2, 6,6,6,6, 6,6, 3, 1,3,2>(    // observed, robot_model_{theta,d,a,alpha},joint_state, handeye,    3dpoint,   focal,distortion,pp
                 new SnavelyReprojectionError(observed_x, observed_y)));
   }
 
@@ -322,6 +323,10 @@ public:
     pp[1] = THDoubleTensor_get2d(intrinsics, 1, 2);
     distortion_data[0] = THDoubleTensor_get2d(distortion, 0, 0);
     distortion_data[1] = THDoubleTensor_get2d(distortion, 0, 1);
+    distortion_data[2] = THDoubleTensor_get2d(distortion, 0, 4);
+
+
+    std::cout << "Distortion: " << distortion_data[0] << " " << distortion_data[1] << " " << distortion_data[2] << std::endl;
 
     num_joint_states = THDoubleTensor_size(joint_states_, 0);
     num_points = THDoubleTensor_size(points_, 0);
@@ -504,7 +509,7 @@ public:
     //bal_problem.printPoints("optimized_pts.csv") ;
 
     std::cout << "Focal: " << focal[0] << std::endl;
-    std::cout << "Distortion: " << distortion_data[0] << " " << distortion_data[1] << std::endl;
+    std::cout << "Distortion: " << distortion_data[0] << " " << distortion_data[1] << " " << distortion_data[2] << std::endl;
     std::cout << "Principle Point: " << pp[0] << " " << pp[1] << std::endl;
 
     std::cout << "Robot Model (after)" << std::endl;
@@ -566,7 +571,7 @@ private:
 
   double focal[1];
   double pp[2];
-  double distortion_data[2];
+  double distortion_data[3];
   double hand_eye_data[6];
 
   long num_joint_states;

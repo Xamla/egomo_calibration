@@ -1,4 +1,5 @@
-build
+build/
+.codelite/
 
 # Compiled Lua sources
 luac.out

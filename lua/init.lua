@@ -1,4 +1,6 @@
 local calib = require 'egomo_calibration.env'
+calib.xamla3d = require 'egomo_calibration.xamla3d'
+require 'egomo_calibration.Calibration'
 
 local optimizeDH = calib.lib.calib___optimizeDH
 local evaluateDH = calib.lib.calib___evaluateDH
