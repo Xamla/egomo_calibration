@@ -13,11 +13,12 @@ require 'cv.calib3d'
 require 'cv.imgcodecs'
 require 'cv.features2d'
 
+local up = torch.DoubleTensor({0,0, 1})
 
 -- private member functions
 local function initializeRobot(self, velocity_scaling)
   self.roboControl = egomoTools.robot:new("capture", 0.4)
-  print("Robot initialisation finished")
+  print("Robot initialization finished.")
 
   self.ps = self.roboControl:GetPlanningSceneInterface()
   self.roboControl.rosMoveGroup:setPlanningTime(2.0)   -- we will ignore poses for which we do not find a plan within 2s
@@ -31,12 +32,12 @@ local function initializeRobot(self, velocity_scaling)
   depthcam:SetProjectorStatus(false)
   depthcam:SetIRresolution(640, 480)
   self.depthcam = depthcam
-  print("Depthcam initialisation finished")
+  print("Depthcam initialisation finished.")
 
   local webcam = egomoTools.webcam:new()
   webcam:ConnectDefault()
   self.webcam = webcam
-  print("Webcam initialisation finished")
+  print("Webcam initialisation finished.")
 end
 
 
@@ -121,9 +122,9 @@ local function saveImages(path, prefix, count, imgIR, imgWeb)
 end
 
 
-local function savePoses()
+local function savePoses(path, prefix, count, poseData)
   local fileName
-  if not (count==nil) then
+  if not count==nil then
     fileName=string.format("%s_%06i.t7", prefix, count)
   else
     fileName=string.format("%s.t7", prefix)
@@ -137,13 +138,13 @@ end
 local function mkdir_recursive(dir_path)
   dir_path = path.abspath(dir_path)
   local dir_names = string.split(dir_path, path.dirsep)
-  local path = '/'
+  local current_path = '/'
   for i,fn in ipairs(dir_names) do
-    path = path.join(path, fn)
-    if not path.exists(path) then
-      path.mkdir(path)
-    elseif path.isfile(path) then
-      error("Cannot create directory. File is in the way: '" .. path .. "'.'")
+    current_path = path.join(current_path, fn)
+    if not path.exists(current_path) then
+      path.mkdir(current_path)
+    elseif path.isfile(current_path) then
+      error("Cannot create directory. File is in the way: '" .. current_path .. "'.'")
     end
   end
 end
@@ -152,12 +153,9 @@ end
 local Capture = torch.class('egomo_calibration.Capture', calib)
 
 
-function Capture:__init(ouput_path, pictures_per_position, velocity_scaling)
+function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.output_path = output_path
   self.pictures_per_position = pictures_per_position or 30
-
-  -- create output directory
-  mkdir_recursive(ouput_path)
 
   -- initial guess for hand-eye matrix and camera parameters
   self.heye = torch.DoubleTensor({
@@ -196,8 +194,8 @@ function Capture:searchPatternCircular(center, radius, height)
       -- move to search pose and look for calibration pattern
     local p = torch.mv(pcl.affine.rotateEuler(0,0,angle):double(), torch.Tensor({radius,0,0,0})):add(center)
     local robot_pose = self.roboControl:WebCamLookAt(p[{{1,3}}], height, math.rad(-30), math.rad(0.5), self.heye)
-    if roboControl:MoveRobotTo(robot_pose) then
-
+    if self.roboControl:MoveRobotTo(robot_pose) then
+      sys.sleep(0.1)  -- wait for controller position convergence
       local img = self:grabImage()
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if ok then
@@ -235,7 +233,7 @@ function Capture:searchPatternCircular(center, radius, height)
 end
 
 
-local function searchPattern()
+function Capture:searchPattern()
   local radius = 0.15
   local height = 0.40
   local patter_search_center = torch.Tensor({0.18, 0.48, 0, 1})
@@ -257,14 +255,14 @@ local function searchPattern()
 end
 
 
-local function captureSphereSampling(self, path, filePrefix, transfer, count, count, min_radius, max_radius, focus, target_jitter)
+local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, min_radius, max_radius, focus, target_jitter)
     -- default values
-  min_radius = min_radius or 0.18   -- min and max distance from target
-  max_radius = max_radius or 0.25
+  min_radius = min_radius or 0.13   -- min and max distance from target
+  max_radius = max_radius or 0.15
   focus = focus or 30
   target_jitter = target_jitter or 0.015
 
-  local t = overviewPose * heye * transfer
+  local t = robot_pose * self.heye * transfer
   local targetPoint = t[{{1,3},4}]
 
   print('identified target point:')
@@ -276,8 +274,7 @@ local function captureSphereSampling(self, path, filePrefix, transfer, count, co
   poseData["JointPos"] = {}
   poseData["FileName"] = {}
 
-  local up = torch.DoubleTensor({0,0, 1})
-  webcam:SetFocusValue(focus)
+  self.webcam:SetFocusValue(focus)
 
   for i=1,count do
 
@@ -305,16 +302,16 @@ local function captureSphereSampling(self, path, filePrefix, transfer, count, co
       up_ = -up_
     end
 
-    local movePose = roboControl:PointAtPose(origin, target, up_, heye)
+    local movePose = self.roboControl:PointAtPose(origin, target, up_, self.heye)
 
-    if roboControl:MoveRobotTo(movePose) then
-      sys.sleep(0.5)
-      local imgIR, imgWeb=GrabImages()
-      poseData["MoveitPose"][i] = roboControl:ReadRobotPose(true)
-      local ur5state = roboControl:ReadUR5data()
-      poseData["UR5Pose"][i] = roboControl:DecodeUR5TcpPose(ur5state, true)
-      poseData["JointPos"][i] = roboControl:DecodeUR5actualJointState(ur5state)
-      poseData["FileName"][i] = saveImages(path, filePrefix, i, imgIR, imgWeb)
+    if self.roboControl:MoveRobotTo(movePose) then
+      sys.sleep(0.5)    -- wait for controller position convergence
+      local imgWeb = self:grabImage()
+      poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
+      local ur5state = self.roboControl:ReadUR5data()
+      poseData["UR5Pose"][i] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
+      poseData["JointPos"][i] = self.roboControl:DecodeUR5actualJointState(ur5state)
+      poseData["FileName"][i] = saveImages(path, filePrefix, i, nil, imgWeb)
 
       savePoses(path, filePrefix, i, poseData)
       i=i+1
@@ -326,6 +323,7 @@ end
 
 
 function Capture:run()
+  print('Storing output in: '.. self.output_path)
   local capture_data_files = {}
   local i = 1
   while true do
@@ -333,20 +331,15 @@ function Capture:run()
     print('Ready? Please press enter.')
     io.stdin:read()
 
-    local pattern_pose, robot_pose = searchPattern()
-
-    -- compute patter pose
-    local transfer = torch.eye(4)
-    transfer[{{1,3}, {1,3}}] = poseCamRotMatrix
-    transfer[{{1,3}, {4}}] = poseCamTrans
-
-    local offset = torch.mv(transfer, torch.Tensor({0.04,0.05,0,0}))
-    transfer[{{},4}]:add(offset)
+    local pattern_pose, robot_pose = self:searchPattern()
 
     local capture_output_path = path.join(self.output_path, string.format('pose%03d', i))
+    mkdir_recursive(capture_output_path)    -- ensure output directory exists
+
     local file_prefix = string.format('pose%03d_', i)
-    local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, transfer, self.pictures_per_position)
+    local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position)
     table.insert(capture_data_files, pose_data_filename)
+    i = i + 1
   end
   return capture_data_files
 end
