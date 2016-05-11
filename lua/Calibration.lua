@@ -388,7 +388,28 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     local robotModel, robotJointDir = self.robotModel.dh, self.robotModel.joint_direction
 
     local optimization_path = ""
-     
+
+    local jointStatesOptimized = jointStates:clone()
+    local init_error = calib.optimizeDH(intrinsics,
+                   distCoeffs,
+                   handEyeInv,   
+                   jointStatesOptimized,
+                   robotModel,
+                   points3d,
+                   observations,
+                   jointPointIndices,
+                   true,     -- optimize_hand_eye
+                   true,     -- optimize_points
+                   false,     -- optimize_robot_model_theta
+                   false,     -- optimize_robot_model_d
+                   false,     -- optimize_robot_model_a
+                   false,     -- optimize_robot_model_alpha
+                   true      -- optimize_joint_states
+                   )
+
+    print("Error after optimizing HandEye:                 "..init_error)     
+
+
     local init_error = calib.optimizeDH(intrinsics,
                    distCoeffs,
                    handEyeInv,   
