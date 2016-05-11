@@ -100,11 +100,12 @@
   <VirtualDirectory Name="lua">
     <File Name="lua/init.lua"/>
     <File Name="lua/env.lua"/>
-    <File Name="lua/capture.lua"/>
     <File Name="lua/xamla3d.lua"/>
     <File Name="lua/Calibration.lua"/>
+    <File Name="lua/Capture.lua"/>
   </VirtualDirectory>
   <VirtualDirectory Name="examples">
     <File Name="examples/multi_target_ur5.lua"/>
+    <File Name="examples/multi_capture.lua"/>
   </VirtualDirectory>
 </CodeLite_Project>
