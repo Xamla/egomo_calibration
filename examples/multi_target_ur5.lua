@@ -7,6 +7,26 @@ local path = require 'pl.path'
 local calib = require 'egomo_calibration'
 local xamla3d = calib.xamla3d
 
+
+function printMatrixAsTorchTensor(m)
+--if (m:nDimensions() ~= 2) then
+-- return
+--end
+
+print("a = torch.DoubleTensor({")
+for i = 1,m:size()[1] do
+  print("{")
+  for j = 1,m:size()[2] do
+  print(m[i][j].. ",")
+  end
+  print("},")
+end
+
+print("})")
+
+end
+
+
 local patterns = {
   { directory='/data/ur5_calibration/2016-05-11/pose001', robotPoses='pose001_.t7' },
   { directory='/data/ur5_calibration/2016-05-11/pose002', robotPoses='pose002_.t7' },
@@ -21,7 +41,8 @@ for i,x in ipairs(patterns) do
   x.robotPoses = torch.load(p)
 end
 
---[[local patterns = {}
+--[[
+local patterns = {}
 local p1 = {}
 p1.directory = "/home/hoppe/data/2016-05-03.4/"
 p1.robotPoses = torch.load(path.join(p1.directory, "spheresurface_000115.t7"))
@@ -52,7 +73,7 @@ for p = 1,#patterns do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
-  if not calibrated and (#robotCalibration.images > 75 or p == #patterns) then
+  if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
     robotCalibration:runCameraCalibration()
     calibrated = true
   end
@@ -66,14 +87,26 @@ print("Validation Error:"..best.validationError)
 print("OptimPath:" .. best.optimizationPath)
 print()
 print('intrinsics')
-print(best.calibData.intrinsics)
+printMatrixAsTorchTensor(best.calibData.intrinsics)
 print('distCoeffs:')
-print(best.calibData.distCoeffs)
+printMatrixAsTorchTensor(best.calibData.distCoeffs)
 print('handEye:')
-print(best.calibData.handEye)
+printMatrixAsTorchTensor(best.calibData.handEye)
 print('robotModel:')
-print(best.calibData.robotModel)
+printMatrixAsTorchTensor(best.calibData.robotModel)
 print('jointDir:')
 print(best.calibData.joinDir)
+
+for i = 1,6 do
+  local r = best.calibData.robotModel
+  print("<property name=\"theta_"..i.."\" value=\""..r[1][i].."\" />")
+  print("<property name=\"ur5_d"..i.."\" value=\""..r[2][i].."\" />")
+  print("<property name=\"ur5_a"..i.."\" value=\""..r[3][i].."\" />")
+  print("<property name=\"alpha_"..i.."\" value=\""..r[4][i].."\" />")
+   
+  
+end
+
+
 
 torch.save('calibration.t7', robotCalibrationData)
