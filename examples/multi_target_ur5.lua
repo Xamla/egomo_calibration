@@ -13,16 +13,18 @@ function printMatrixAsTorchTensor(m)
 -- return
 --end
 
-print("a = torch.DoubleTensor({")
+local write = io.write
+
+write("a = torch.DoubleTensor({\n")
 for i = 1,m:size()[1] do
-  print("{")
+  write("{")
   for j = 1,m:size()[2] do
-  print(m[i][j].. ",")
+  write(m[i][j].. ",")
   end
-  print("},")
+  write("},\n")
 end
 
-print("})")
+write("})\n")
 
 end
 
@@ -73,7 +75,7 @@ for p = 1,#patterns do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
-  if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
+  if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
     robotCalibration:runCameraCalibration()
     calibrated = true
   end
@@ -102,9 +104,7 @@ for i = 1,6 do
   print("<property name=\"theta_"..i.."\" value=\""..r[1][i].."\" />")
   print("<property name=\"ur5_d"..i.."\" value=\""..r[2][i].."\" />")
   print("<property name=\"ur5_a"..i.."\" value=\""..r[3][i].."\" />")
-  print("<property name=\"alpha_"..i.."\" value=\""..r[4][i].."\" />")
-   
-  
+  print("<property name=\"alpha_"..i.."\" value=\""..r[4][i].."\" />")  
 end
 
 
