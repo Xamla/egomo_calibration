@@ -10,12 +10,12 @@ local xamla3d = calib.xamla3d
 local patterns = {}
 
 local p1 = {}
-p1.directory = "/data/ur5_calibration/2016-05-03.4/"
+p1.directory = "/home/hoppe/data/2016-05-03.4/"
 p1.robotPoses = torch.load(path.join(p1.directory, "spheresurface_000115.t7"))
 table.insert(patterns, p1)
 
 local p2 = {}
-p2.directory = "/data/ur5_calibration/2016-05-03.3/"
+p2.directory = "/home/hoppe/data/2016-05-03.3/"
 p2.robotPoses = torch.load(path.join(p2.directory, "spheresurface_000115.t7"))
 table.insert(patterns, p2)
 
