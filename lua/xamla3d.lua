@@ -6,7 +6,6 @@ local xamla3d = {}
 xamla3d.utils = {}
 xamla3d.calibration = {}
 
-
 -- returns the intersection of two lines in 2D. Line 1 is defined two points (p1 and p2) and
 -- Line 2 by (p3 and p4) 
 function xamla3d.intersectLines (p1,p2, p3, p4)
@@ -20,6 +19,7 @@ function xamla3d.intersectLines (p1,p2, p3, p4)
 end
 
 
+
 -- Returns the distance of a point to a line defined by two points P1 and P2
 function xamla3d.pointLineDistance (P1, P2, X)
  local nom = (P2.y - P1.y)*X.x - (P2.x-P1.x)*X.y + P2.x*P1.y-P2.y*P1.x
@@ -27,6 +27,58 @@ function xamla3d.pointLineDistance (P1, P2, X)
  return math.abs(nom / denom)
 end
 
+
+function xamla3d.axisAngleToRotMatrix(vec)
+   local vec_3x1 = vec:view(3,1):clone()
+  local theta = torch.norm(vec_3x1)
+  local R
+  if (theta < 1e-14) then
+    R = torch.eye(3,3)
+  else
+    local alpha = math.cos(theta)
+    local beta = math.sin(theta)
+    local gamma = 1-math.cos(theta)
+    
+    local omega = vec_3x1 / theta
+    local omegav = xamla3d.getSkewSymmetricMatrix(omega:view(3,1)) 
+    
+     local A = omega*omega:t();
+  
+     R = torch.eye(3,3)*alpha + omegav*beta + A*gamma;
+  end
+
+  return R
+  
+end
+
+function xamla3d.rotMatrixToAxisAngle(rotation_3x3)
+ local R = rotation_3x3:clone()
+ local U,S,V = torch.svd(R)
+ R = U * V:t()
+ local tr = (torch.trace(R)-1)/2 
+ local theta = math.acos(tr)
+ local out
+ if (math.sin(theta) >= 1e-5) then  
+  local vth = 1/(2*math.sin(theta));  
+  local om1 = torch.DoubleTensor({R[3][2]-R[2][3], R[1][3]-R[3][1], R[2][1]-R[1][2]}):view(3,1):t():clone();  
+  local om = om1 * vth;
+  out = om*theta;
+ else
+   if tr > 0 then       -- case norm(om)=0;    
+       print("Case1")  
+      out = torch.DoubleTensor(3):zero();
+   else     
+     print("Case2")
+     local sign = torch.DoubleTensor(3,1)
+     sign[1][1] = 1
+     sign[{{2,3}, 1}] = (((R[{1,{2,3}}]:ge(0))*2):type('torch.DoubleTensor'))-1 
+     out = ((torch.sqrt((torch.diag(R)+1)/2)):cmul(sign))* theta             
+   end   
+ end
+ 
+ return out
+ 
+end
 
 --Returns the fundamental matrix given two 3x4 projection matrices
 function xamla3d.getFundamentalMatrix (K, R1, t1, R2, t2)
