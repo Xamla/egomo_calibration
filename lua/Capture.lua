@@ -137,10 +137,13 @@ end
 
 local function mkdir_recursive(dir_path)
   dir_path = path.abspath(dir_path)
-  local dir_names = string.split(dir_path, path.dirsep)
+  local dir_names = string.split(dir_path, "/")
+  print("----------------------------------------------------")
+  print(dir_names)
   local current_path = '/'
   for i,fn in ipairs(dir_names) do
     current_path = path.join(current_path, fn)
+
     if not path.exists(current_path) then
       path.mkdir(current_path)
     elseif path.isfile(current_path) then
@@ -331,10 +334,12 @@ function Capture:run()
     print('Ready? Please press enter.')
     io.stdin:read()
 
-    local pattern_pose, robot_pose = self:searchPattern()
-
     local capture_output_path = path.join(self.output_path, string.format('pose%03d', i))
     mkdir_recursive(capture_output_path)    -- ensure output directory exists
+
+    local pattern_pose, robot_pose = self:searchPattern()
+
+
 
     local file_prefix = string.format('pose%03d_', i)
     local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position)

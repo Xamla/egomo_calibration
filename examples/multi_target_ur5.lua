@@ -75,13 +75,13 @@ for p = 1,#patterns do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
-  if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
+  if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
     robotCalibration:runCameraCalibration()
     calibrated = true
   end
 end
 
-local best, robotCalibrationData = robotCalibration:DHCrossValidate(0.6, 1)
+local best, robotCalibrationData = robotCalibration:DHCrossValidate(0.6, 20)
 
 print("Best Result:")
 print("Training   Error:"..best.trainingError)
