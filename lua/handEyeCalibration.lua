@@ -63,8 +63,63 @@ function xamlaHandEye.getAlignError(Hg, Hc, HandEye)
 end
 
 
-function xamlaHandEye.
+-- Perform hand Eye calibration using cross validation. i.e sample
+-- nPoses randomly from Hg and Hc and calc hand eye. this hand eye matrix
+-- is then evaluated according to its rotational alignment error   
+function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
 
+  assert(#Hg == #Hc)
+  assert(nPoses >= 3)
+  assert(nTrials >= 1)
+  assert(#Hg >= nPoses)
+
+  local minError = 10000
+  local bestHESolution = nil
+  local alignmentErrorTest = nil
+  local alignmentError = nil
+
+  for n = 1, nTrials do
+  
+  if (n % 100 == 0) then
+    print(n)
+  end
+  
+    local idx = torch.randperm(#Hg)
+    local HgSamples = {}
+    local HcSamples = {} 
+       
+    for i = 1, nPoses do
+      table.insert(HgSamples, Hg[idx[i]])
+      table.insert(HcSamples, Hc[idx[i]])
+    end
+        
+    local HE, resAlignOpt, res_angle = xamlaHandEye.calibrate(HgSamples,HcSamples)
+    
+    print("maxTAlignment: " ..torch.max(resAlignOpt) .." MaxRAlignemnt:" ..torch.max(res_angle))
+
+    if (torch.max(res_angle) < 0.03) then
+      local HgVal = {}
+      local HcVal = {}
+      
+      for i = nPoses+1, #Hg do
+        table.insert(HgVal, Hg[idx[i]])
+        table.insert(HcVal, Hc[idx[i]])
+      end
+      
+      local error, res = xamlaHandEye.getAlignError(HgVal,HcVal,HE)        
+          
+      if (error < minError) then
+        minError = error
+        bestHESolution = HE:clone()
+        alignmentErrorTest = res
+        alignmentError = resAlignOpt
+      end
+    end           
+  end
+
+  return bestHESolution, alignmentErrorTest, alignmentError
+
+end
 
 function xamlaHandEye.calibrate(Hg, Hc) 
 
@@ -145,8 +200,6 @@ function xamlaHandEye.calibrate(Hg, Hc)
   H[{{1,3},4}] = Tcg
   
   return H, res, res_angle
-
-
 end
 
 
