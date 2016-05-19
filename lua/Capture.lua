@@ -278,8 +278,8 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
   poseData["FileName"] = {}
 
   self.webcam:SetFocusValue(focus)
-
-  for i=1,count do
+  local i = 1
+  while i < count do
 
     -- generate random point in positive half shere
     local origin
@@ -307,17 +307,27 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
 
     local movePose = self.roboControl:PointAtPose(origin, target, up_, self.heye)
 
-    if self.roboControl:MoveRobotTo(movePose) then
-      sys.sleep(0.5)    -- wait for controller position convergence
-      local imgWeb = self:grabImage()
-      poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
-      local ur5state = self.roboControl:ReadUR5data()
-      poseData["UR5Pose"][i] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
-      poseData["JointPos"][i] = self.roboControl:DecodeUR5actualJointState(ur5state)
-      poseData["FileName"][i] = saveImages(path, filePrefix, i, nil, imgWeb)
+    local polarAngle = math.random()*180 - 90
+    local azimuthalAngle = math.random()*90 - 45
+    local radius = min_radius +0.03 +(max_radius - min_radius)*math.random()
 
-      savePoses(path, filePrefix, i, poseData)
-      i=i+1
+    local movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
+   
+    if self.roboControl:MoveRobotTo(movePose) then
+      sys.sleep(0.2)    -- wait for controller position convergence
+      local imgWeb = self:grabImage()
+      local ok,pattern_points = cv.findCirclesGrid{image=imgWeb, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+      if (ok) then
+        poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
+        local ur5state = self.roboControl:ReadUR5data()
+        poseData["UR5Pose"][i] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
+        poseData["JointPos"][i] = self.roboControl:DecodeUR5actualJointState(ur5state)
+        poseData["FileName"][i] = saveImages(path, filePrefix, i, nil, imgWeb)
+
+        savePoses(path, filePrefix, i, poseData)
+        i=i+1
+        print("Pattern found! Remaining images: ".. count - i)
+      end
     end
   end
 
