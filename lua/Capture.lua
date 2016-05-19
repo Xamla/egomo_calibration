@@ -258,12 +258,13 @@ function Capture:searchPattern()
 end
 
 
-local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, min_radius, max_radius, focus, target_jitter)
+local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, min_radius, max_radius, focus, target_jitter)
     -- default values
   min_radius = min_radius or 0.13   -- min and max distance from target
   max_radius = max_radius or 0.15
   focus = focus or 30
   target_jitter = target_jitter or 0.015
+  capForHandEye = capForHandEye or false
 
   local t = robot_pose * self.heye * transfer
   local targetPoint = t[{{1,3},4}]
@@ -307,12 +308,13 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
 
     local movePose = self.roboControl:PointAtPose(origin, target, up_, self.heye)
 
-    local polarAngle = math.random()*180 - 90
-    local azimuthalAngle = math.random()*90 - 45
-    local radius = min_radius +0.03 +(max_radius - min_radius)*math.random()
+    if capForHandEye then
+      local polarAngle = math.random()*180 - 90
+      local azimuthalAngle = math.random()*90 - 45
+      local radius = min_radius +0.03 +(max_radius - min_radius)*math.random()
+      movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
+    end     
 
-    local movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
-   
     if self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
       local imgWeb = self:grabImage()
@@ -352,7 +354,7 @@ function Capture:run()
 
 
     local file_prefix = string.format('pose%03d_', i)
-    local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position)
+    local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, false)
     table.insert(capture_data_files, pose_data_filename)
     i = i + 1
   end
