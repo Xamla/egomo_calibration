@@ -1,5 +1,6 @@
 local calib = require 'egomo_calibration.env'
 calib.xamla3d = require 'egomo_calibration.xamla3d'
+calib.handEye = require 'egomo_calibration.handEyeCalibration'
 require 'egomo_calibration.Capture'
 require 'egomo_calibration.Calibration'
 

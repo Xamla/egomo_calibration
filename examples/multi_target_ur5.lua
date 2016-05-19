@@ -75,7 +75,7 @@ for p = 1,#patterns do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
-  if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
+  if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
     robotCalibration:runCameraCalibration()
     calibrated = true
   end

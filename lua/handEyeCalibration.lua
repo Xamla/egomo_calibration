@@ -1,4 +1,4 @@
-local xamla3d = require('./xamla3d')
+local xamla3d = require('egomo_calibration.xamla3d')
 
 
 local xamlaHandEye = {}
@@ -108,8 +108,8 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
       
       local error, res = xamlaHandEye.getAlignError(HgVal,HcVal,HE)        
           
-      if (error < minError) then
-        minError = error
+      if (torch.mean(res) < minError) then
+        minError = torch.mean(res)
         bestHESolution = HE:clone()
         alignmentErrorTest = res
         alignmentError = resAlignOpt
