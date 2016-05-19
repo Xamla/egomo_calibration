@@ -58,14 +58,15 @@ function xamla3d.rotMatrixToAxisAngle(rotation_3x3)
  local tr = (torch.trace(R)-1)/2 
  local theta = math.acos(tr)
  local out
- if (math.sin(theta) >= 1e-5) then  
+ if (math.sin(theta) >= 1e-12) then    
   local vth = 1/(2*math.sin(theta));  
   local om1 = torch.DoubleTensor({R[3][2]-R[2][3], R[1][3]-R[3][1], R[2][1]-R[1][2]}):view(3,1):t():clone();  
   local om = om1 * vth;
   out = om*theta;
  else
-   if tr > 0 then       -- case norm(om)=0;    
+   if tr > 0 then       -- case norm(om)=0;          
        print("Case1")  
+       print(R)
       out = torch.DoubleTensor(3):zero();
    else     
      print("Case2")

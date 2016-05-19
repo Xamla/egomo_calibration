@@ -16,19 +16,23 @@ local function pinv(x)
    return pin
 end
 
-
-function xamlaHandEye.calibrate(Hg, Hc) 
-
+--Hg - a table of 4x4 gripper poses
+--Hc - a table of 4x4 camera positions (e.g. got from solvePnP)
+--H - the estimated HandEye matrix
+--return - A vector of alignment residuals 
+function xamlaHandEye.getAlignError(Hg, Hc, HandEye) 
+  local Tcg = HandEye[{{1,3},4}]
+  
   assert(#Hg == #Hc)
+  
+  local Rcg = HandEye[{{1,3},{1,3}}]
+  local Tcg = HandEye[{{1,3},{4}}]
 
   local Hg_ij = {}
   local Hc_ij = {}
   
   
-  local nEquations = ((#Hg) * (#Hg-1))/2
-  
-  print("Equations for solving Rotation "..nEquations)
-  
+  local nEquations = ((#Hg) * (#Hg-1))/2 
   
   local coeff = torch.DoubleTensor(3*nEquations, 3)
   local const = torch.DoubleTensor(3*nEquations, 1)
@@ -37,35 +41,139 @@ function xamlaHandEye.calibrate(Hg, Hc)
   local cnt = 0
   
   for i = 1,#Hg do
+    for j = i+1,#Hg do    
+      local dHg = torch.inverse(Hg[i]) * Hg[j]
+      local dHc = Hc[i] * torch.inverse(Hc[j])     
+      table.insert(Hg_ij, dHg)
+      table.insert(Hc_ij, dHc)          
+    end
+  end
+ 
+ 
+ 
+ for i = 1,#Hg_ij do
+  coeff[{{(i-1)*3+1,(i-1)*3 + 3 }, {}}] = Hg_ij[i][{{1,3},{1,3}}] - torch.eye(3,3)
+  const[{{(i-1)*3+1,(i-1)*3 + 3},  1}] = Rcg * Hc_ij[i][{{1,3},{4}}] - Hg_ij[i][{{1,3},{4}}]
+ end
+ 
+ local res = coeff * Tcg - const
+ 
+ return torch.sum(torch.abs(res)), res
+ 
+end
+
+
+-- Perform hand Eye calibration using cross validation. i.e sample
+-- nPoses randomly from Hg and Hc and calc hand eye. this hand eye matrix
+-- is then evaluated according to its rotational alignment error   
+function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
+
+  assert(#Hg == #Hc)
+  assert(nPoses >= 3)
+  assert(nTrials >= 1)
+  assert(#Hg >= nPoses)
+
+  local minError = 10000
+  local bestHESolution = nil
+  local alignmentErrorTest = nil
+  local alignmentError = nil
+
+  for n = 1, nTrials do
+  
+  if (n % 100 == 0) then
+    print(n)
+  end
+  
+    local idx = torch.randperm(#Hg)
+    local HgSamples = {}
+    local HcSamples = {} 
+       
+    for i = 1, nPoses do
+      table.insert(HgSamples, Hg[idx[i]])
+      table.insert(HcSamples, Hc[idx[i]])
+    end
+        
+    local HE, resAlignOpt, res_angle = xamlaHandEye.calibrate(HgSamples,HcSamples)
+    
+    print("maxTAlignment: " ..torch.max(resAlignOpt) .." MaxRAlignemnt:" ..torch.max(res_angle))
+
+    if (torch.max(res_angle) < 0.03) then
+      local HgVal = {}
+      local HcVal = {}
+      
+      for i = nPoses+1, #Hg do
+        table.insert(HgVal, Hg[idx[i]])
+        table.insert(HcVal, Hc[idx[i]])
+      end
+      
+      local error, res = xamlaHandEye.getAlignError(HgVal,HcVal,HE)        
+          
+      if (error < minError) then
+        minError = error
+        bestHESolution = HE:clone()
+        alignmentErrorTest = res
+        alignmentError = resAlignOpt
+      end
+    end           
+  end
+
+  return bestHESolution, alignmentErrorTest, alignmentError
+
+end
+
+function xamlaHandEye.calibrate(Hg, Hc) 
+
+  assert(#Hg == #Hc)
+
+  local Hg_ij = {}
+  local Hc_ij = {}
+  
+  local Pg = {}
+  local Pc = {} 
+  
+  
+  local nEquations = ((#Hg) * (#Hg-1))/2 
+  
+  local coeff = torch.DoubleTensor(3*nEquations, 3)
+  local const = torch.DoubleTensor(3*nEquations, 1)
+  
+  
+  local cnt = 0  
+  
+  for i = 1,#Hg do
     for j = i+1,#Hg do
     
-    local dHg = torch.inverse(Hg[i]) * Hg[j]
-    local dHc = Hc[i] * torch.inverse(Hc[j])
+    local dHg = torch.inverse(Hg[j]) * Hg[i]
+    local dHc = Hc[j] * torch.inverse(Hc[i])
+     
+
      
      table.insert(Hg_ij, dHg)
      table.insert(Hc_ij, dHc)
+     
      
      local Pg_ij = xamlaHandEye.modRodrigues(dHg[{{1,3},{1,3}}])
      local Pc_ij = xamlaHandEye.modRodrigues(dHc[{{1,3},{1,3}}])
      
      Pg_ij = Pg_ij:clone():view(3,1)
      Pc_ij = Pc_ij:clone():view(3,1)
-             
-
-     
+                
      coeff[{{cnt*3+1,cnt*3 + 3 }, {}}] = xamla3d.getSkewSymmetricMatrix(Pg_ij + Pc_ij)
      const[{{cnt*3+1, cnt*3 + 3},  1}] = Pc_ij:view(3,1) - Pg_ij:view(3,1)
      cnt = cnt+1
      
     end
-  end
-  
+  end  
+    
   local AtA =  torch.DoubleTensor(3,3):zero()
   local Atb = coeff:t() * const
   AtA = coeff:t() * coeff
   local Pcg_p = torch.inverse(AtA) * Atb
-
   
+  
+  local res_angle = coeff * Pcg_p - const
+ 
+   
   local Pcg =  (Pcg_p * 2) / math.sqrt(1+torch.norm(Pcg_p)^2);
 
   local Rcg = xamlaHandEye.invModRodrigues(Pcg);
@@ -84,9 +192,14 @@ function xamlaHandEye.calibrate(Hg, Hc)
   local Tcg = torch.inverse(AtA) * Atb
    
   local res = coeff * Tcg - const
-  print(torch.histc(res))
-
-
+  --print(torch.min(torch.abs(res)))
+  --print(torch.max(torch.abs(res)))
+  
+  local H = torch.eye(4,4)
+  H[{{1,3},{1,3}}] = Rcg
+  H[{{1,3},4}] = Tcg
+  
+  return H, res, res_angle
 end
 
 
