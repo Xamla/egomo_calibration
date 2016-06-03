@@ -106,7 +106,7 @@ function Calibration:__init(pattern, im_width, im_height, hand_eye, robot_model)
     self.pattern = {
       width = 8,
       height = 21,
-      circleSpacing = 5
+      circleSpacing = 8
     }
   end
 
@@ -126,12 +126,13 @@ function Calibration:__init(pattern, im_width, im_height, hand_eye, robot_model)
 
   self.handEye = hand_eye
   if handEye == nil then
-    self.handEye = torch.Tensor({
-      {  0.002505,  0.764157,  0.645025, 15.239477 / 1000.0 },  -- translation in meters (convert for mm)
-      { -0.000719, -0.645026,  0.764161, 69.903526 / 1000.0 },
-      {  0.999997, -0.002379, -0.001066, 55.941492 / 1000.0 },
-      {  0.000000,  0.000000,  0.000000,  1.000000 }
-    })
+    self.handEye = torch.DoubleTensor({
+   {0.0019753199627884,0.7605059561815,0.64932795159573,0.015107794350183,},
+   {0.0010427115144404,-0.64933043182179,0.76050568904041,0.074581531861269,},
+   {0.99999750542876,-0.00082518033759893,-0.0020756236817346,0.0559444561459,},
+   {0,0,0,1,},
+})
+    
   end
 
   self.images = {}
@@ -359,11 +360,13 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     local distCoeffs = self.distCoeffs:clone()
     local handEyeInv = torch.inverse(self.handEye)
 
-    local robotModel, robotJointDir = self.robotModel.dh, self.robotModel.joint_direction
+    local robotModel = self.robotModel.dh:clone()
+    local robotJointDir = self.robotModel.joint_direction
 
     local optimization_path = ""
 
     local jointStatesOptimized = jointStates:clone()
+    --[[
     local init_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
@@ -380,8 +383,8 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_alpha
       true       -- optimize_joint_states
     )
-
     print("Error after optimizing HandEye:                 "..init_error)     
+]]
 
     local init_error = calib.optimizeDH(intrinsics,
       distCoeffs,
@@ -703,7 +706,7 @@ function Calibration:runCameraCalibration(load_existing_calibration)
   print("Distortions")
   print(distCoeffs)
   
-  -- torch.save("intrinsics.t7", { intrinsics = cameraMatrix, distCoeffs = distCoeffs })
+  torch.save("intrinsics.t7", { intrinsics = cameraMatrix, distCoeffs = distCoeffs })
 
   self.intrinsics = cameraMatrix
   self.distCoeffs = distCoeffs
