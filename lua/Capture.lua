@@ -215,10 +215,21 @@ function Capture:searchPatternCircular(center, radius, height)
         pattern_pose[{{1,3}, {1,3}}] = pose_cam_rot_matrix
         pattern_pose[{{1,3}, {4}}] = pose_cam_trans
 
+        local pattern_pose_original = pattern_pose:clone()
+
+
         local pattern_center_offset = torch.mv(pattern_pose, torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0,0}))
         pattern_pose[{{},4}]:add(pattern_center_offset)
 
-        return true, pattern_pose, robot_pose
+        local pattern_points_in_base = {}
+
+        for i =1,#circlePositions do
+          local base = robot_pose * self.heye * pattern_pose_original * circlePositions[{i, 1, {1,3}}]
+          table.insert(pattern_points_in_base, base)
+        end
+
+
+        return true, pattern_pose, robot_pose, pattern_points_in_base
       end
 
       print('Calibration pattern not in view.')
