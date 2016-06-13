@@ -1,9 +1,11 @@
 local calib = require 'egomo_calibration.env'
+local xamla3d = require 'egomo_calibration.xamla3d'
 local egomoTools = require 'egomo-tools'
 local torch = require 'torch'
 local path = require 'pl.path'
 local ros = require 'ros'
 local pcl = require 'pcl'
+
 
 local cv = require 'cv'
 require 'cv.highgui'
@@ -81,6 +83,106 @@ local function calcPointPositions(arg)
   end
   return corners
 end
+
+
+--[[ 
+]]
+local function calcCamPoseFromDesired2dPatternPoints(self, borderWidth, radius)
+  local intrinsics = self.intrinsics
+  local w = self.imwidth
+  local h = self.imheight
+  
+  local ul_3d = {x = 0, y = 0}
+  local ur_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = 0}
+  local lr_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = (self.pattern.width*2-1) * self.pattern.pointDistance}
+  local ll_3d = {x = 0, y =  (self.pattern.width*2-1) * self.pattern.pointDistance}
+  
+  --local ul_3d = {x = 0, y = 0}
+  --local ur_3d = {x = 0, y = 0.230}
+  --local ll_3d = {x = 0.138, y = 0}
+  --local lr_3d = {x = 0.138, y = 0.230}
+  
+  
+  local p3d = torch.zeros(4,1,3);
+  p3d[1][1][1] = ul_3d.y
+  p3d[1][1][2] = ul_3d.x
+  
+  p3d[2][1][1] = ur_3d.y
+  p3d[2][1][2] = ur_3d.x
+  
+  p3d[3][1][1] = lr_3d.y
+  p3d[3][1][2] = lr_3d.x
+  
+  p3d[4][1][1] = ll_3d.y
+  p3d[4][1][2] = ll_3d.x
+  
+  print(p3d)
+  
+  
+  
+  for i = 1,100 do
+    --Three corner points of our image
+    local ul = {x = 0 + borderWidth + radius, y = 0 + borderWidth + radius}
+    local ur = {x = w - borderWidth - radius, y = 0 + borderWidth + radius}
+    local lr = {x = w - borderWidth - radius, y = h - borderWidth - radius}
+    local ll = {x = 0 + borderWidth, y = h - borderWidth - radius}
+ 
+    
+    --Add some noise
+    ul.x = ul.x + (math.random() - 0.5) * radius
+    ul.y = ul.y + (math.random() - 0.5) * radius
+    
+    ur.x = ur.x + (math.random() - 0.5) * radius
+    ur.y = ur.y + (math.random() - 0.5) * radius
+    
+    lr.x = lr.x + (math.random() - 0.5) * radius
+    lr.y = lr.y + (math.random() - 0.5) * radius
+    
+    local img = torch.ByteTensor(h, w, 3):zero()
+    
+    cv.circle{img = img, center = ul, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = ur, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = lr, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = ll, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    
+    
+    local p2d = torch.zeros(4,1,2);
+    p2d[1][1][1] = ul.x
+    p2d[1][1][2] = ul.y
+
+    p2d[2][1][1] = ur.x
+    p2d[2][1][2] = ur.y
+    
+    p2d[3][1][1] = lr.x
+    p2d[3][1][2] = lr.y
+    
+    p2d[4][1][1] = ll.x
+    p2d[4][1][2] = ll.y
+   
+    local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=p3d, imagePoints=p2d, cameraMatrix=self.intrinsics, distCoeffs=torch.zeros(5,1)}   
+       
+    local H = torch.eye(4,4)
+    H[{{1,3},{1,3}}] = xamla3d.calibration.RotVectorToRotMatrix(pose_cam_rot_vector)
+    H[{{1,3},4}] = pose_cam_trans
+
+  
+    local pp_3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)    
+    for i = 1,pp_3d:size()[1] do
+      local projection = xamla3d.projectPoint(self.intrinsics, H, pp_3d[{i,1,{}}])            
+       cv.circle{img = img, center = {x = projection[1], y = projection[2]}, radius = 10, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}       
+    end
+       
+    print(H)
+    
+    cv.imshow{"RandPatternPos", img}
+    cv.waitKey{-1}
+  end
+  
+  
+  
+end
+
+
 
 --[[
   transform a rotation vector as e.g. provided by solvePnP to a 3x3 rotation matrix using the Rodrigues' rotation formula
@@ -173,10 +275,14 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
     {    0.0000,    0.0000,    1.0000 }
   })
   self.distortion = torch.Tensor({0.1448, -0.5273, -0.0007, 0.0028, 0.9005})
-  self.pattern = { width = 8, height = 21, pointDistance = 0.008 }
+  self.pattern = { width = 4, height = 11, pointDistance = 0.023 }
   self.imwidth = 960
   self.imheight = 720
-  initializeRobot(self, velocity_scaling or 0.5)
+  
+  calcCamPoseFromDesired2dPatternPoints(self, 50, 30)
+  
+  
+  --initializeRobot(self, velocity_scaling or 0.5)
 end
 
 
@@ -407,6 +513,45 @@ function Capture:allPointsInImage(robot_pose, points_in_base)
     
   end
 end
+
+
+function Capture:acquireForApproxFocal(current_robot_pose)
+
+  local images_pattern = {}
+  local patterns = {}
+  local objectPoints = {}
+  
+  local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
+  
+
+  while(#images_pattern < 5) do
+  
+    local robot_pose = current_robot_pose:clone()
+    
+    robot_pose[{{1,3}, 4}] = robot_pose[{{1,3}, 4}] + (torch.rand(3,1) - 0.5) * 0.04
+    print("Going to pose:") 
+    print(robot_pose)
+    
+    if self.roboControl:MoveRobotTo(robot_pose) then
+      sys.sleep(0.1)  -- wait for controller position convergence
+      local img = self:grabImage()
+      local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}      
+      if ok then
+        print("Image pattern found!")
+        table.insert(images_pattern, img) 
+        table.insert(patterns, pattern_points)
+        table.insert(objectPoints, patternPoints3d)
+      end      
+    end
+  end
+  
+  local err_, camera_matrix, distCoeffs, rvecs, tvecs = cv.calibrateCamera{objectPoints=objectPoints, imagePoints=patterns, imageSize={self.imwidth, self.imheight}, flag=cv.CALIB_ZERO_TANGENT_DIST+cv.CALIB_FIX_K3 + cv.CV_CALIB_FIX_K1 + cv.CV_CALIB_FIX_K2}
+  print("Camera Matrix:")
+  print(camera_matrix)
+ 
+  
+end
+
 
 
 function Capture:run()

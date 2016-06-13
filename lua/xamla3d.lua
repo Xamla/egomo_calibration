@@ -135,6 +135,31 @@ function xamla3d.shuffleTable( t )
 end
 
 
+function xamla3d.drawEpipolarLineWithF(F, image2, pts2d_image1_2xX, image1)
+   local lines = cv.computeCorrespondEpilines{points = pts2d_image1_2xX, whichImage = 1, F = F}
+
+  local w = image2:size()[2]
+
+  for i = 1,lines:size()[1] do
+    local l = lines[{i,{}}];
+    local ep1_y = (l[1][1]*0+l[1][3]) / -l[1][2]
+    local ep2_y = (l[1][1]*w+l[1][3]) / -l[1][2]
+
+    local c = torch.rand(3)*255
+    c = c:type('torch.ByteTensor')
+        
+    if image1 ~= nil then
+      
+      local center = {pts2d_image1_2xX[{i, 1, 1}], pts2d_image1_2xX[{i,1, 2}]}
+  
+      cv.circle{img = image1, center = center, radius = 6, color = {c[1],c[2],c[3]}, thickness = 1, lineType = cv.LINE_AA}
+    end
+        
+
+    cv.line{img = image2, pt1 = {x = 0, y = ep1_y}, pt2 = {x = w, y = ep2_y}, thickness = 1, color = {c[1],c[2],c[3]}}
+  end
+end
+
 function xamla3d.drawEpipolarLine (Pose1_4x4, Pose2_4x4, intrinsic_3x3, image2, pts2d_image1_2xX)
   local F = xamla3d.getFundamentalMatrixFromFullPose(Pose1_4x4, Pose2_4x4, intrinsic_3x3)
 
@@ -146,7 +171,10 @@ function xamla3d.drawEpipolarLine (Pose1_4x4, Pose2_4x4, intrinsic_3x3, image2, 
     local l = lines[{i,{}}];
     local ep1_y = (l[1][1]*0+l[1][3]) / -l[1][2]
     local ep2_y = (l[1][1]*w+l[1][3]) / -l[1][2]
-    cv.line{img = image2, pt1 = {x = 0, y = ep1_y}, pt2 = {x = w, y = ep2_y}, thickness = 1, color = {0,0,255}}
+    
+    local color = torch.rand(3,1)*255
+    
+    cv.line{img = image2, pt1 = {x = 0, y = ep1_y}, pt2 = {x = w, y = ep2_y}, thickness = 1, color = {0,243,255}}
   end
 end
 
@@ -265,11 +293,12 @@ end
 
 
 -- Projects a point X (in World coordinates) to camera P 
-function xamla3d.projectPoint (K, Rt, X)
+function xamla3d.projectPoint (K, Rt, X)  
+
   local Xw = torch.zeros(4)
   Xw:view(4,1)[{{1,3},1}] = X:view(3,1)[{{1,3},1}]  
   Xw[4] = 1
-  local xc = K *Rt*Xw
+  local xc = K *Rt[{{1,3},{1,4}}]*Xw
   local xc = xc / xc[3]
   return xc:view(3,1)[{{1,2},1}]
 end

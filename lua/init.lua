@@ -3,6 +3,9 @@ calib.xamla3d = require 'egomo_calibration.xamla3d'
 calib.handEye = require 'egomo_calibration.handEyeCalibration'
 require 'egomo_calibration.Capture'
 require 'egomo_calibration.Calibration'
+require 'egomo_calibration.Camera'
+require 'egomo_calibration.DepthCamera'
+require 'egomo_calibration.EgomoSensor'
 
 local optimizeDH = calib.lib.calib___optimizeDH
 local evaluateDH = calib.lib.calib___evaluateDH

@@ -470,7 +470,9 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     calibData.distCoeffs = distCoeffs
     calibData.handEye = torch.inverse(handEyeInv)
     calibData.robotModel = robotModel
-    calibData.joinDir = { 1, -1, -1, -1, 1, -1 }     
+    calibData.joinDir = { 1, -1, -1, -1, 1, -1 }    
+    calibData.imWidth = self.im_width
+    calibData.imHeight = self.im_height
   
     local observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal = nil
     for k = 1,#idxForValidationPerPattern do
