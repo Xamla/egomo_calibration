@@ -515,7 +515,44 @@ function Capture:allPointsInImage(robot_pose, points_in_base)
 end
 
 
-function Capture:acquireForApproxFocal(current_robot_pose)
+function Capture:acquireFocalStack()
+  local image_stack = {}
+  local brenner = {}
+  
+  local p = path.join(self.output_path, "focal_stack")  
+  mkdir_recursive(p)
+  
+  for i = 0, 250/5 do
+    self.webcam:SetFocusValue(i*5)
+    local image = nil
+    for j = 1,2 do --ignore the first image because it is not affected by the focal settings 
+       image = self:grabImage()
+    end
+    
+    local img_gray = cv.cvtColor(image, cv.RGB2GRAY)
+    
+    -- calculate brenner
+    local rows = img_gray.size()[1]
+    local cols = img_gray.size()[2]
+    
+    local P = img_gray[{{1,rows-2}, {}}] - img_gray[{{3, rows},{}}]
+    local b = torch.sum(P.cmul(P))
+    
+    print(string.format("Brenner gradient: %d", b))
+    
+    table.insert(brenner, b)
+    
+    p = path.join(p, string.format('focal_%03d.png', i))
+    cv.imwrite{p, image}
+    table.insert(image_stack, image)
+  end
+  
+  return image_stack
+  
+end
+
+
+function Capture:acquireForApproxFocalLength(current_robot_pose)
 
   local images_pattern = {}
   local patterns = {}
@@ -561,7 +598,7 @@ function Capture:run()
 
   local img = self:grabImage()
   self.imwidth = img:size()[2]
-  self.imheight = img:size()[1]
+  self.imheight = img:size()[1]    
   print ("Image size: "..img:size()[1] .. "x"..img:size()[2])
 
   checkIntrinsics(self, img)  
