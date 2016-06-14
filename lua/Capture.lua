@@ -19,11 +19,11 @@ local up = torch.DoubleTensor({0,0, 1})
 
 -- private member functions
 local function initializeRobot(self, velocity_scaling)
-  --self.roboControl = egomoTools.robot:new("capture", 0.4)
+  self.roboControl = egomoTools.robot:new("capture", 0.4)
   print("Robot initialization finished.")
 
-  --self.ps = self.roboControl:GetPlanningSceneInterface()
-  --self.roboControl.rosMoveGroup:setPlanningTime(2.0)   -- we will ignore poses for which we do not find a plan within 2s
+  self.ps = self.roboControl:GetPlanningSceneInterface()
+  self.roboControl.rosMoveGroup:setPlanningTime(2.0)   -- we will ignore poses for which we do not find a plan within 2s
 
   local camIntrinsicsIR=torch.FloatTensor({
      {563, 0, 322},
@@ -262,37 +262,28 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.pictures_per_position = pictures_per_position or 30
 
   -- initial guess for hand-eye matrix and camera parameters
-  self.heye = nil
-  self.intrinsics = nil
-  self.distortion = torch.zeros(5,1)
-  self.pattern = nil 
-  
-  --[[
-  torch.DoubleTensor({
+  self.heye = torch.DoubleTensor({
     {  0.0025,   0.7642,   0.6450,  0.0152395 },
     { -0.0007,  -0.6450,   0.7642,  0.0699035 },
     {  1.0000,  -0.0024,  -0.0011,  0.0559415 },
     {  0.0000,   0.0000,   0.0000,  1.0000    }
   })
-  torch.Tensor({
+  self.intrinsics = torch.Tensor({
     {  918.3122,    0.0000,  481.8074 },
     {    0.0000,  917.5487,  359.0547 },
     {    0.0000,    0.0000,    1.0000 }
   })
   self.distortion = torch.Tensor({0.1448, -0.5273, -0.0007, 0.0028, 0.9005})
   self.pattern = { width = 8, height = 21, pointDistance = 0.008 }
-  ]]
   self.imwidth = 960
   self.imheight = 720
-  
-  initializeRobot(self, velocity_scaling or 0.5)
-  
-end
 
 function Capture:setDefaultCameraValues(heye, pattern)
   self.heye = heye
   self.pattern = pattern
 
+
+  initializeRobot(self, velocity_scaling or 0.5)
 end
 
 
@@ -355,7 +346,7 @@ function Capture:searchPatternCircular(center, radius, height)
       local img = self:grabImage()
       cv.imshow{"Image", img}
       cv.waitKey{10}
-      local ok, pattern_pose, robot_pose, pattern_points_in_base =  self:findPattern(img)
+      local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if ok then
         return true, pattern_pose, robot_pose, pattern_points_in_base       
       end
@@ -525,6 +516,9 @@ local function checkIntrinsics(self, image)
 
 end
 
+function Capture:allPointsInImage(robot_pose, points_in_base)
+  local cam_pose = robot_pose
+  for i = 1,#points_in_base do
 
 function Capture:showLiveView()
   
@@ -575,6 +569,7 @@ function Capture:getBestFocusPoint()
     -- calculate brenner
     local rows = image_gray:size()[1]
     local cols = image_gray:size()[2]
+
     local P = image_gray[{{1,rows-2}, {}}] - image_gray[{{3, rows},{}}]
     local b = torch.sum(torch.cmul(P,P))
     
@@ -590,6 +585,9 @@ function Capture:getBestFocusPoint()
       end                                   -- we found already the maximum
     end    
   end
+
+  return image_stack
+
 end
 
 
@@ -604,6 +602,7 @@ function Capture:acquireForApproxFocalLength(focus_setting)
   
 
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
+
 
   while(#images_pattern < 5) do
 

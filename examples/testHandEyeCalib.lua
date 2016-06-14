@@ -33,7 +33,7 @@ local Hc = {}
       local fn = dir.."/"..robotPoses.FileName[i].."_ir.png"
       print(fn)
       local image = cv.imread{fn}    
-      local found, pose_4x4 = xamla3d.calibration.getPoseFromTarget (image, intrinsics, distortion, patternSize, 0.02)       
+      local found, pose_4x4 = xamla3d.calibration.getPoseFromTarget (image, intrinsics, distortion, patternSize, 0.023)       
     
       if found then     
         table.insert(Hg, robotPoses.MoveitPose[i].full)
@@ -42,7 +42,7 @@ local Hc = {}
   end
 end
   
-local HE, error = calib.handEye.calibrateViaCrossValidation(Hg, Hc, 30, 1000)
+local HE, error = calib.handEye.calibrateViaCrossValidation(Hg, Hc, 30, 1000) -- 30 has to be smaller then nImg
 print("Max error: " ..torch.max(torch.abs(error)))
 print("Mean:      " ..torch.mean(torch.abs(error)))
 print("Variance:  " ..torch.var(torch.abs(error)))

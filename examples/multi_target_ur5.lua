@@ -30,10 +30,10 @@ end
 
 
 local patterns = {
-  { directory='/data/ur5_calibration/2016-05-11/pose001', robotPoses='pose001_.t7' },
-  { directory='/data/ur5_calibration/2016-05-11/pose002', robotPoses='pose002_.t7' },
-  { directory='/data/ur5_calibration/2016-05-11/pose004', robotPoses='pose004_.t7' },
-  { directory='/data/ur5_calibration/2016-05-11/pose005', robotPoses='pose005_.t7' },
+  { directory='/data/ur5_calibration/2016-06-13/pose001', robotPoses='pose001_.t7' },
+--  { directory='/data/ur5_calibration/2016-06-11/pose002', robotPoses='pose002_.t7' },
+--  { directory='/data/ur5_calibration/2016-06-11/pose004', robotPoses='pose004_.t7' },
+--  { directory='/data/ur5_calibration/2016-06-11/pose005', robotPoses='pose005_.t7' },
   --{ directory='/data/ur5_calibration/2016-05-11/pose006', robotPoses='pose006_.t7' },
   --{ directory='/data/ur5_calibration/2016-05-11/pose007', robotPoses='pose007_.t7' }
 }
@@ -58,7 +58,7 @@ table.insert(patterns, p2)
 
 local robotCalibration = calib.Calibration()
 local calibrated = false
-for p = 1,#patterns do
+for p = 1,1 do
   local directory = patterns[p].directory
   local robotPoses = patterns[p].robotPoses
 
@@ -75,11 +75,16 @@ for p = 1,#patterns do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
-  if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
+  --if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
+  --if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
+  --if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
+  if p == 1 then
     robotCalibration:runCameraCalibration()
     calibrated = true
   end
 end
+
+os.exit()
 
 local best, robotCalibrationData = robotCalibration:DHCrossValidate(0.6, 20)
 
