@@ -5,7 +5,7 @@ local torch = require 'torch'
 local path = require 'pl.path'
 local ros = require 'ros'
 local pcl = require 'pcl'
-
+tf = ros.tf
 
 local cv = require 'cv'
 require 'cv.highgui'
@@ -36,9 +36,9 @@ local function initializeRobot(self, velocity_scaling)
   self.depthcam = depthcam
   print("Depthcam initialisation finished.")
 
-  local webcam = egomoTools.webcam:new("web_test")
+  local webcam = egomoTools.webcam:new("web_cam")
   webcam:ConnectDefault()
-  webcam:ConnectToJpgStream()  
+  webcam:ConnectToJpgStream()
   self.webcam = webcam
   print("Webcam initialisation finished.")
 end
@@ -259,7 +259,7 @@ local Capture = torch.class('egomo_calibration.Capture', calib)
 
 function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.output_path = output_path
-  self.pictures_per_position = pictures_per_position or 30
+  self.pictures_per_position = pictures_per_position or 5
 
   -- initial guess for hand-eye matrix and camera parameters
   self.heye = torch.DoubleTensor({
@@ -277,13 +277,17 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.pattern = { width = 8, height = 21, pointDistance = 0.008 }
   self.imwidth = 960
   self.imheight = 720
+end
 
 function Capture:setDefaultCameraValues(heye, pattern)
-  self.heye = heye
-  self.pattern = pattern
-
-
+  --self.heye = heye
+  --self.pattern = pattern
   initializeRobot(self, velocity_scaling or 0.5)
+end
+
+
+function Capture:grabImageGray()
+  return self.webcam:GrabGrayscaleImgROS()
 end
 
 
@@ -293,7 +297,19 @@ function Capture:grabImage()
 end
 
 
-function Capture:findPattern(img)
+function Capture:isPatternInImg(img)
+   local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+   return ok
+end
+
+function Capture:findPattern()
+  local img = self:grabImageGray()
+  if img == nil then
+    return false
+  end
+
+  local robot_pose = self.roboControl:ReadRobotPose(true).full
+
   local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
   if ok then
     local circlePositions = calcPointPositions{pointsX=self.pattern.width, pointsY=self.pattern.height, pointDistance=self.pattern.pointDistance}
@@ -311,9 +327,13 @@ function Capture:findPattern(img)
 
     local pattern_pose_original = pattern_pose:clone()
 
+    local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
 
-    local pattern_center_offset = torch.mv(pattern_pose, torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0,0}))
-    pattern_pose[{{},4}]:add(pattern_center_offset)
+    local pattern_center_world = robot_pose * self.heye * pattern_pose * offset
+    print("Target point in search!")
+    print(pattern_center_world)
+
+
 
     local pattern_points_in_base = {}
 
@@ -324,7 +344,9 @@ function Capture:findPattern(img)
       local base = robot_pose * self.heye * pattern_pose_original * X:t()
       table.insert(pattern_points_in_base, base[{{1,3},1}])
     end
-    return true, pattern_pose, robot_pose, pattern_points_in_base
+    return true, pattern_pose, robot_pose, pattern_points_in_base, pattern_center_world
+  end
+  return false
 end
 
 
@@ -348,7 +370,7 @@ function Capture:searchPatternCircular(center, radius, height)
       cv.waitKey{10}
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if ok then
-        return true, pattern_pose, robot_pose, pattern_points_in_base       
+        return true, pattern_pose, robot_pose, pattern_points_in_base
       end
 
       print('Calibration pattern not in view.')
@@ -392,8 +414,6 @@ local function checkPatternInImage(self, robot_pose, pattern_points_base)
   local cam_pos = torch.inverse(robot_pose * self.heye)
   local P = self.intrinsics * cam_pos[{{1,3}, {1,4}}]
 
-  print(self.imwidth .. " x " ..self.imheight)
-
   for i = 1,#pattern_points_base do
     local X = torch.DoubleTensor(4,1)
     X[{{1,3},1}] = pattern_points_base[i]:view(3,1)
@@ -401,7 +421,6 @@ local function checkPatternInImage(self, robot_pose, pattern_points_base)
     local x = (P * X):squeeze()
     x = x  / x[3]
     if x[1] < 50 or x[1] > self.imwidth-50 or x[2] < 50 or x[2] > self.imheight-50 then
-      print("Pattern outside image")
       return false
     end
   end
@@ -411,16 +430,20 @@ local function checkPatternInImage(self, robot_pose, pattern_points_base)
 end
 
 
-local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, min_radius, max_radius, focus, target_jitter)
+local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
     -- default values
+  print("Capture for hand-Eye: ")
+  print(capForHandEye)
+  print("intrinsics:")
+  print(self.intrinsics)
+
   min_radius = min_radius or 0.17   -- min and max distance from target
   max_radius = max_radius or 0.19
   focus = focus or 20
   target_jitter = target_jitter or 0.015
   capForHandEye = capForHandEye or false
 
-  local t = robot_pose * self.heye * transfer
-  local targetPoint = t[{{1,3},4}]
+  local targetPoint = pattern_center_world
 
   print('identified target point:')
   print(targetPoint)
@@ -441,7 +464,7 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
       origin = torch.randn(3)
       origin[3] = math.max(0.01, math.abs(origin[3]))
       origin:div(origin:norm())
-      if origin[3] > 0.98 then
+      if origin[3] > 0.96 then
         break
       end
     end
@@ -463,6 +486,7 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
 
 
     if capForHandEye then
+      print("Adapt parameters for hand - eye")
       local polarAngle = math.random()*180 - 90
       local azimuthalAngle = math.random()*60 - 30
       local radius = min_radius +0.20 +(max_radius - min_radius)*math.random()
@@ -491,51 +515,16 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
   return savePoses(path, filePrefix, nil, poseData)
 end
 
-local function checkIntrinsics(self, image)
-  local expectedWidth = self.intrinsics[1][3] * 2
-  local expectedHeight = self.intrinsics[2][3] * 2
-
-  print("Img size: " .. image:size(2).."x"..image:size(1))
-
-  if (math.abs(image:size(2) - expectedHeight)) > 20 then
-    print(math.abs(image:size(2) - expectedHeight))
-    print("Wrong intrinsic parameters set!")
-    print("Setting default values!")
-    local intrinsic = torch.eye(3,3)
-    local oldF = self.intrinsics[1][1]
-    local scale = image:size(1) / 720
-
-    intrinsic[1][1] = 1670 -- Assume we have 90 degrees field of view
-    intrinsic[2][2] = 1670 -- Assume we have 90 degrees field of view
-    intrinsic[1][3] = image:size(2) / 2 -- Assume pp in middle of pic
-    intrinsic[2][3] = image:size(1) / 2 -- Assume pp in middle of pic
-
-    self.intrinsics = intrinsic:clone()
-    self.distortion = torch.DoubleTensor(5,1):zero()
-  end
-
-end
-
-function Capture:allPointsInImage(robot_pose, points_in_base)
-  local cam_pose = robot_pose
-  for i = 1,#points_in_base do
-
 function Capture:showLiveView()
-  
-  local cnt_nil = 0
-  
-  while true do
-    --if cnt_nil > 2000 then
-      --print("Could not grab rgb images for live view")
-      --return false
-    --end
 
-   
+  local cnt_nil = 0
+
+  while true do
     local img = self.webcam:GrabJPEGstreamROS()
     if img ~= nil then
       cnt_nil = 0
       cv.imshow{"Live View", img}
-      local key = cv.waitKey{10}    
+      local key = cv.waitKey{10}
       if key == 1048689 then --q
         cv.destroyAllWindows{}
         return
@@ -544,7 +533,7 @@ function Capture:showLiveView()
       cnt_nil = cnt_nil + 1
     end
   end
-  
+
 end
 
 
@@ -554,7 +543,7 @@ function Capture:getBestFocusPoint()
 
   local p = path.join(self.output_path, "focal_stack")
   mkdir_recursive(p)
-  
+
   local best = {value = 0, focal = 0}
 
   for i = 0, 250/5 do
@@ -572,50 +561,68 @@ function Capture:getBestFocusPoint()
 
     local P = image_gray[{{1,rows-2}, {}}] - image_gray[{{3, rows},{}}]
     local b = torch.sum(torch.cmul(P,P))
-    
+
     p = path.join(p, string.format('focal_%03d.png', i))
     cv.imwrite{p, image_gray:type('torch.ByteTensor')}
-    
+
     if b > best.value then
       best.value = b
       best.focal = f
-    else 
+    else
       if torch.abs(best.focal - f) > 3 then -- Our focal function is monotonic and has a single peak,
         return best.focal                   -- So if we did not get a better value for a certain time
       end                                   -- we found already the maximum
-    end    
+    end
   end
 
   return image_stack
 
 end
 
+local function CreatePose(pos, rot)
+  local pose = tf.Transform()
+  pose:setOrigin(pos)
+  pose:setRotation(rot)
+  return pose:toTensor()
+end
+
+function Capture:addRotationAroundZ(pose, rot_degree)
+  local tfPose = tf.Transform()
+  tfPose:fromTensor(pose)
+  local b=tfPose:getRotation()
+  b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_degree) ))
+  c = tfPose:getOrigin()
+  local nextPose = CreatePose(c, b)
+  return nextPose
+end
 
 function Capture:acquireForApproxFocalLength(focus_setting)
 
   local images_pattern = {}
   local patterns = {}
   local objectPoints = {}
-  
+
   self.webcam:SetFocusValue(focus_setting)
   current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
-  
 
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
-
 
   while(#images_pattern < 5) do
 
     local robot_pose = current_robot_pose:clone()
 
     robot_pose[{{1,3}, 4}] = robot_pose[{{1,3}, 4}] + (torch.rand(3,1) - 0.5) * 0.04
+
+    local deg_z = (math.random()-0.5) * 10
+
+    robot_pose = self:addRotationAroundZ(robot_pose, deg_z)
     print("Going to pose:")
     print(robot_pose)
 
     if self.roboControl:MoveRobotTo(robot_pose) then
       sys.sleep(0.1)  -- wait for controller position convergence
       local img = self:grabImage()
-      local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}      
+      local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       cv.imshow{"Grab!", img}
       cv.waitKey{-1}
 
@@ -637,6 +644,27 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 
 end
 
+function Capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+  local capture_output_path = path.join(self.output_path, "intrinsic")
+  mkdir_recursive(capture_output_path)    -- ensure output directory exists
+
+  local file_prefix = string.format('intrinsic_')
+  local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
+
+  table.insert(capture_data_files, pose_data_filename)
+end
+
+
+function Capture:captureForHandEye(pattern_pose, robot_pose, pattern_center_world)
+  local capture_output_path = path.join(self.output_path, "handeye")
+  mkdir_recursive(capture_output_path)    -- ensure output directory exists
+
+  local file_prefix = string.format('handeye_')
+  local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
+
+  table.insert(capture_data_files, pose_data_filename)
+end
+
 
 
 function Capture:run()
@@ -646,8 +674,8 @@ function Capture:run()
 
   local img = self:grabImage()
   self.imwidth = img:size()[2]
-  self.imheight = img:size()[1]  
-  print(self.intrinsics) 
+  self.imheight = img:size()[1]
+  print(self.intrinsics)
 
 
   while true do

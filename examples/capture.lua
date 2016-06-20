@@ -29,13 +29,13 @@ end
 
 
 
-local function main() 
-  ros.init('webtest')
-  ros.Time.init()
-  spinner = ros.AsyncSpinner()
-  spinner:start()
+local function main()
+  --ros.init('webtest')
+  --ros.Time.init()
+  --spinner = ros.AsyncSpinner()
+  --spinner:start()
 
- 
+
 
   local egomo = calib.EgomoSensor()
   egomo.side_cam_RGB = calib.Camera(torch.eye(3,3), torch.zeros(5,1), torch.eye(4,4), 960, 720)
@@ -45,42 +45,51 @@ local function main()
       {  1.0000,  -0.0024,  -0.0011,  0.0559415 },
       {  0.0000,   0.0000,   0.0000,  1.0000    }
     })
-    
+
   egomo.side_cam_depth = calib.DepthCamera(torch.eye(3,3), torch.zeros(5,1), torch.eye(4,4), 640, 480)
   egomo.side_cam_depth_hand_eye = torch.DoubleTensor({
         {-0.00998,  -0.78267,   0.62236,   0.04679},
         {0.00177,   0.62238,   0.78271,   0.05434},
         {-0.99995,   0.00891,  -0.00483,   0.08246},
         {0.00000,   0.00000,   0.00000,   1.00000}})
-  
-  
+
+
   local output_directory_path = '/data/ur5_calibration/' .. os.date('%Y-%m-%d') .. '/'
-  local pictures_per_position = 30
+  local pictures_per_position = 5
   local velocity_scaling = 0.5
-    
+
   local pattern = {}
   pattern.width = 8
   pattern.height = 21
   pattern.pointDistance = 0.008
-  
+
   --Ask user if parameters of pattern are correct
   if askForPattern(pattern) then
-    local capture = calib.Capture(output_directory_path, 30, velocity_scaling)
-    capture:setDefaultCameraValues(egomo.side_cam_hand_eye, capture)
-     
-    -- Visualize the livestream in a window             
+    local capture = calib.Capture(output_directory_path, pictures_per_position, velocity_scaling)
+    capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
+
+    -- Visualize the livestream in a window
     showLiveView(capture)
-    
-    -- Capture an image stack and find the best value 
-    local bestFocus = capture:getBestFocusPoint()
-    print(string.format("Best focus setting is %d",bestFocus))
-    
-    
+
+    -- Capture an image stack and find the best value
+    --local bestFocus = capture:getBestFocusPoint()
+    --print(string.format("Best focus setting is %d",bestFocus))
+
+
+  local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
+  if pattern_found then
+    print("Pattern found")
+    print(pattern_pose)
+    capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+  end
+
+
+
   else
     print("Calibration cancelled! Change your calibration board!")
   end
-  
-  
+
+
 end
 
 
