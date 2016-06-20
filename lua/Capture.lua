@@ -36,7 +36,7 @@ local function initializeRobot(self, velocity_scaling)
   self.depthcam = depthcam
   print("Depthcam initialisation finished.")
 
-  local webcam = egomoTools.webcam:new("web_cam")
+  local webcam = egomoTools.webcam:new("egomo_webcam")
   webcam:ConnectDefault()
   webcam:ConnectToJpgStream()
   self.webcam = webcam
@@ -524,7 +524,7 @@ function Capture:showLiveView()
     if img ~= nil then
       cnt_nil = 0
       cv.imshow{"Live View", img}
-      local key = cv.waitKey{10}
+      local key = cv.waitKey{30}
       if key == 1048689 then --q
         cv.destroyAllWindows{}
         return
@@ -586,18 +586,28 @@ local function CreatePose(pos, rot)
   return pose:toTensor()
 end
 
-function Capture:addRotationAroundZ(robot_pose, rot_degree)
+function Capture:addRotationAround(robot_pose, rot_x_degree, rot_y_degree, rot_z_degree)
   local pose_cam = robot_pose * self.heye
   local tfPose = tf.Transform()
   tfPose:fromTensor(pose_cam)
   local b=tfPose:getRotation()
   
-  b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_degree) ))  
-  b = b:mul(tf.Quaternion({0,1,0}, math.rad(rot_degree) ))
+  b = b:mul(tf.Quaternion({1,0,0}, math.rad(rot_x_degree) ))  
+  b = b:mul(tf.Quaternion({0,1,0}, math.rad(rot_y_degree) ))
+  b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_z_degree) ))
   local c = tfPose:getOrigin()
   local next_pose = CreatePose(c, b)
   next_pose = next_pose * torch.inverse(self.heye)  
   return next_pose
+end
+
+function Capture:getCameraAxesInRobotBase(robot_pose)
+  local cam_pose = robot_pose * self.heye
+  local x = cam_pose[{{1,3},{1,3}}] * torch.Tensor({1,0,0})
+  local y = cam_pose[{{1,3},{1,3}}] * torch.Tensor({0,1,0})
+  local z = x:cross(y)
+  z = z / torch.norm(z) * -1
+  return x,y,z
 end
 
 function Capture:acquireForApproxFocalLength(focus_setting)
@@ -611,15 +621,46 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
 
-  while(#images_pattern < 5) do
+  local x_cam,y_cam,z_cam = self:getCameraAxesInRobotBase(current_robot_pose)
+
+  while(#images_pattern < 8) do
 
     local robot_pose = current_robot_pose:clone()
 
-    robot_pose[{{1,3}, 4}] = robot_pose[{{1,3}, 4}] + (torch.rand(3,1) - 0.5) * 0.04
+	local scale_tensor = torch.Tensor({1,1,2})
+    local scale_rot = 10
+    local z_offset = 0.05
+	if #images_pattern < 10 then      
+      --scale_tensor = torch.zeros(3)
+      scale_rot = #images_pattern * 2
+      z_offset = #images_pattern *0.01
+	end
 
-    local deg_z = (math.random()-0.5) * 10
+	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
+	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
+	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random() - 0.5) * scale_tensor[3])
+	
+	local jittered_cam_pose = (robot_pose * self.heye)
+	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
+	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
+   
+	print("Jittered robot Pose")
+    print(robot_pose)
+	
+    --local rand_offset = torch.cmul((torch.rand(3)-0.5), scale_tensor)
+	--rand_offset[3] = math.abs(rand_offset[3])
+	
+    --robot_pose[{{1,3}, 4}] = robot_pose[{{1,3}, 4}] + (rand_offset * 0.04)
+	--robot_pose[3][4] = robot_pose[3][4] + z_offset
 
-    robot_pose = self:addRotationAroundZ(robot_pose, deg_z)
+
+    local deg_x = (math.random()-0.5) * scale_rot
+    local deg_y = (math.random()-0.5) * scale_rot
+    local deg_z = (math.random()-0.5) * scale_rot
+
+	
+
+    robot_pose = self:addRotationAround(robot_pose, deg_x, deg_y, deg_z)
     print("Going to pose:")
     print(robot_pose)
 
@@ -644,6 +685,9 @@ function Capture:acquireForApproxFocalLength(focus_setting)
   local err_, camera_matrix, distCoeffs, rvecs, tvecs = cv.calibrateCamera{objectPoints=objectPoints, imagePoints=patterns, imageSize={self.imwidth, self.imheight}, flag=cv.CALIB_ZERO_TANGENT_DIST+cv.CALIB_FIX_K3 + cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2}
   print("Camera Matrix:")
   print(camera_matrix)
+  print(distCoeffs)
+
+  self.roboControl:MoveRobotTo(current_robot_pose)
 
 
 end
