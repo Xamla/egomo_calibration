@@ -586,14 +586,18 @@ local function CreatePose(pos, rot)
   return pose:toTensor()
 end
 
-function Capture:addRotationAroundZ(pose, rot_degree)
+function Capture:addRotationAroundZ(robot_pose, rot_degree)
+  local pose_cam = robot_pose * self.heye
   local tfPose = tf.Transform()
-  tfPose:fromTensor(pose)
+  tfPose:fromTensor(pose_cam)
   local b=tfPose:getRotation()
-  b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_degree) ))
-  c = tfPose:getOrigin()
-  local nextPose = CreatePose(c, b)
-  return nextPose
+  
+  b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_degree) ))  
+  b = b:mul(tf.Quaternion({0,1,0}, math.rad(rot_degree) ))
+  local c = tfPose:getOrigin()
+  local next_pose = CreatePose(c, b)
+  next_pose = next_pose * torch.inverse(self.heye)  
+  return next_pose
 end
 
 function Capture:acquireForApproxFocalLength(focus_setting)
@@ -603,7 +607,7 @@ function Capture:acquireForApproxFocalLength(focus_setting)
   local objectPoints = {}
 
   self.webcam:SetFocusValue(focus_setting)
-  current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
+  local current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
 
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
 
