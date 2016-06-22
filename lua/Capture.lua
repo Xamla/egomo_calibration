@@ -586,7 +586,17 @@ local function CreatePose(pos, rot)
   return pose:toTensor()
 end
 
-function Capture:addRotationAround(robot_pose, rot_x_degree, rot_y_degree, rot_z_degree)
+---
+-- This function calculates the robot pose (TCP) that is required to rotate the camera around 
+-- its image axis x, y, z (where x represents the axis that is associated with the width of the
+-- image and y the height of the image. Z is the vector that is associated with the viewing ray
+-- passing the cameras center. The rotation order is x,y,z
+-- @param robot_pose 4x4 torch.Tensor of current camera pose
+-- @param rot_x_degree rotation around the images / cameras x axis in degree
+-- @param rot_y_degree rotation around the images / cameras y axis in degree
+-- @param rot_z_degree rotation around the images / cameras z axis in degree
+-- @return the robots pose that is required to rotate the camera
+function Capture:addRotationAroundCameraAxes(robot_pose, rot_x_degree, rot_y_degree, rot_z_degree)
   local pose_cam = robot_pose * self.heye
   local tfPose = tf.Transform()
   tfPose:fromTensor(pose_cam)
@@ -601,6 +611,11 @@ function Capture:addRotationAround(robot_pose, rot_x_degree, rot_y_degree, rot_z
   return next_pose
 end
 
+
+---
+-- This function returns the cameras x, y, and z axis in robot base coordinates
+-- @param robot_pose 4x4 torch.Tensor of robot pose the camera is attached to
+-- @return x,y,z 3x1 torch.Tensor of the x, y, z axis in robot base coordinates
 function Capture:getCameraAxesInRobotBase(robot_pose)
   local cam_pose = robot_pose * self.heye
   local x = cam_pose[{{1,3},{1,3}}] * torch.Tensor({1,0,0})
@@ -610,6 +625,19 @@ function Capture:getCameraAxesInRobotBase(robot_pose)
   return x,y,z
 end
 
+
+---
+-- This function acquires a bunch of images to estimate the intrinsics of the camera.
+-- Distortions are not estimated and therefore are set to zero.
+-- The only assumption is that the hand eye matrix is given.
+-- The idea is to move around the current camera position and acquire images. At the end
+-- the intrinsic camera matrix is calculated. The movement pattern is the following:
+-- First take a picture of the current image and then add random offsets to the current
+-- position and rotate the camera around its axis. We start with small movements and then
+-- increase the movement. This guarantees enough variation to estimate the intrinsic
+-- camera parameters.
+-- @param focus_setting the focus value the camera should be set to.
+-- 
 function Capture:acquireForApproxFocalLength(focus_setting)
 
   local images_pattern = {}
@@ -643,16 +671,6 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 	local jittered_cam_pose = (robot_pose * self.heye)
 	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
 	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
-   
-	print("Jittered robot Pose")
-    print(robot_pose)
-	
-    --local rand_offset = torch.cmul((torch.rand(3)-0.5), scale_tensor)
-	--rand_offset[3] = math.abs(rand_offset[3])
-	
-    --robot_pose[{{1,3}, 4}] = robot_pose[{{1,3}, 4}] + (rand_offset * 0.04)
-	--robot_pose[3][4] = robot_pose[3][4] + z_offset
-
 
     local deg_x = (math.random()-0.5) * scale_rot
     local deg_y = (math.random()-0.5) * scale_rot
@@ -683,13 +701,9 @@ function Capture:acquireForApproxFocalLength(focus_setting)
   end
 
   local err_, camera_matrix, distCoeffs, rvecs, tvecs = cv.calibrateCamera{objectPoints=objectPoints, imagePoints=patterns, imageSize={self.imwidth, self.imheight}, flag=cv.CALIB_ZERO_TANGENT_DIST+cv.CALIB_FIX_K3 + cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2}
-  print("Camera Matrix:")
-  print(camera_matrix)
-  print(distCoeffs)
-
+  -- Move back to the initial position
   self.roboControl:MoveRobotTo(current_robot_pose)
-
-
+ return camera_matrix, distCoeffs, err_
 end
 
 function Capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)

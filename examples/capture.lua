@@ -70,11 +70,10 @@ local function main()
 
     -- Visualize the livestream in a window
     showLiveView(capture)
-
     -- Capture an image stack and find the best value
-    --local bestFocus = capture:getBestFocusPoint()
-    --print(string.format("Best focus setting is %d",bestFocus))
-
+    local bestFocus = capture:getBestFocusPoint()
+    print(string.format("Best focus setting is %d",bestFocus))
+    capture:acquireForApproxFocalLength(bestFocus)
 
   local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
   if pattern_found then
