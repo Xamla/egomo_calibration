@@ -21,9 +21,29 @@ local function askForPattern(pattern)
   end
 end
 
+local function askForDHParameter()
+  print("Do you want to acquire images for DH Parameter optimization?")
+  print("If yes, then move the calibration target within your roboter workspace")
+  print("move the robot in freedrive to pattern position and answer this question")
+  print("with \"y\" ")
+   local answer
+  repeat
+    io.write("Do you want to acquire images for DH parameter (y/n)? ")
+    io.flush()
+    answer=io.read()
+  until answer=="y" or answer=="n"
+  if answer == "y" then
+    return true
+  else
+    return false
+  end
+
+end
+
+
 local function showLiveView(capture)
   print("Please move robot in freedrive mode about 40cm above the pattern!")
-  print("If you are done, please press \"n\" ")
+  print("If you are done, please press \"q\" ")
   capture:showLiveView()
 end
 
@@ -55,7 +75,7 @@ local function main()
 
 
   local output_directory_path = '/data/ur5_calibration/' .. os.date('%Y-%m-%d') .. '/'
-  local pictures_per_position = 5
+  local pictures_per_position = 30
   local velocity_scaling = 0.5
 
   local pattern = {}
@@ -71,15 +91,41 @@ local function main()
     -- Visualize the livestream in a window
     showLiveView(capture)
     -- Capture an image stack and find the best value
-    local bestFocus = capture:getBestFocusPoint()
-    print(string.format("Best focus setting is %d",bestFocus))
-    capture:acquireForApproxFocalLength(bestFocus)
+    --local bestFocus = capture:getBestFocusPoint()
+    --print(string.format("Best focus setting is %d",bestFocus))
+    --local cam_intrinsics = capture:acquireForApproxFocalLength(bestFocus)
+    --capture.intrinsics = cam_intrinsics
+    --print("Approx Camera intrinsics")
+    --print(cam_intrinsics)
+
 
   local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
+
+   local pattern_pose_robot = robot_pose * capture.heye * pattern_pose
+   print("---------Robot Pose-----")
+   print(robot_pose)
+   print("---------Pattern Pose-----")
+   print(pattern_pose)
+
+   --capture:calcCamPoseFromDesired2dPatternPoints(100, 50, pattern_pose_robot)
+
   if pattern_found then
     print("Pattern found")
     print(pattern_pose)
     capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+    capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+  end
+
+  local do_dh = askForDHParameter()
+  if do_dh then
+    for i = 1,3 do
+      showLiveView(capture)
+      local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
+      if pattern_found then
+        print("Pattern found")
+        capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world, string.format("dh_%03d", i))
+      end
+    end
   end
 
 

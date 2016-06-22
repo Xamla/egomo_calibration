@@ -59,129 +59,9 @@ local function showImage(img, winName, delay)
 end
 
 
---[[
-  Calculate the "true" 3D position (x,y,z) of the circle centers of the circle pattern.
-  z position is set to 0 for all points
-
-  Input params:
-    arg.pointsX  -- number of points in horizontal direction
-    arg.pointsY  -- number of points in vertical direction
-    arg.pointDistance -- distance between two points of the pattern in meter
-  Return value:
-    Position of the circle centers
-]]
-local function calcPointPositions(arg)
-
-  local corners = torch.FloatTensor(arg.pointsX*arg.pointsY, 1, 3):zero()
-  local i=1
-  for y=1, arg.pointsY do
-    for x=1, arg.pointsX do
-      corners[i][1][1] = (2*(x-1) + (y-1)%2) * arg.pointDistance
-      corners[i][1][2] = (y-1)*arg.pointDistance
-      corners[i][1][3] = 0
-      i = i+1
-    end
-  end
-  return corners
-end
-
 
 --[[
 ]]
-local function calcCamPoseFromDesired2dPatternPoints(self, borderWidth, radius)
-  local intrinsics = self.intrinsics
-  local w = self.imwidth
-  local h = self.imheight
-
-  local ul_3d = {x = 0, y = 0}
-  local ur_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = 0}
-  local lr_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = (self.pattern.width*2-1) * self.pattern.pointDistance}
-  local ll_3d = {x = 0, y =  (self.pattern.width*2-1) * self.pattern.pointDistance}
-
-  --local ul_3d = {x = 0, y = 0}
-  --local ur_3d = {x = 0, y = 0.230}
-  --local ll_3d = {x = 0.138, y = 0}
-  --local lr_3d = {x = 0.138, y = 0.230}
-
-
-  local p3d = torch.zeros(4,1,3);
-  p3d[1][1][1] = ul_3d.y
-  p3d[1][1][2] = ul_3d.x
-
-  p3d[2][1][1] = ur_3d.y
-  p3d[2][1][2] = ur_3d.x
-
-  p3d[3][1][1] = lr_3d.y
-  p3d[3][1][2] = lr_3d.x
-
-  p3d[4][1][1] = ll_3d.y
-  p3d[4][1][2] = ll_3d.x
-
-  print(p3d)
-
-
-
-  for i = 1,100 do
-    --Three corner points of our image
-    local ul = {x = 0 + borderWidth + radius, y = 0 + borderWidth + radius}
-    local ur = {x = w - borderWidth - radius, y = 0 + borderWidth + radius}
-    local lr = {x = w - borderWidth - radius, y = h - borderWidth - radius}
-    local ll = {x = 0 + borderWidth, y = h - borderWidth - radius}
-
-
-    --Add some noise
-    ul.x = ul.x + (math.random() - 0.5) * radius
-    ul.y = ul.y + (math.random() - 0.5) * radius
-
-    ur.x = ur.x + (math.random() - 0.5) * radius
-    ur.y = ur.y + (math.random() - 0.5) * radius
-
-    lr.x = lr.x + (math.random() - 0.5) * radius
-    lr.y = lr.y + (math.random() - 0.5) * radius
-
-    local img = torch.ByteTensor(h, w, 3):zero()
-
-    cv.circle{img = img, center = ul, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
-    cv.circle{img = img, center = ur, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
-    cv.circle{img = img, center = lr, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
-    cv.circle{img = img, center = ll, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
-
-
-    local p2d = torch.zeros(4,1,2);
-    p2d[1][1][1] = ul.x
-    p2d[1][1][2] = ul.y
-
-    p2d[2][1][1] = ur.x
-    p2d[2][1][2] = ur.y
-
-    p2d[3][1][1] = lr.x
-    p2d[3][1][2] = lr.y
-
-    p2d[4][1][1] = ll.x
-    p2d[4][1][2] = ll.y
-
-    local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=p3d, imagePoints=p2d, cameraMatrix=self.intrinsics, distCoeffs=torch.zeros(5,1)}
-
-    local H = torch.eye(4,4)
-    H[{{1,3},{1,3}}] = xamla3d.calibration.RotVectorToRotMatrix(pose_cam_rot_vector)
-    H[{{1,3},4}] = pose_cam_trans
-
-
-    local pp_3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
-    for i = 1,pp_3d:size()[1] do
-      local projection = xamla3d.projectPoint(self.intrinsics, H, pp_3d[{i,1,{}}])
-       cv.circle{img = img, center = {x = projection[1], y = projection[2]}, radius = 10, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}
-    end
-
-    print(H)
-
-    cv.imshow{"RandPatternPos", img}
-    cv.waitKey{-1}
-  end
-
-
-
-end
 
 
 
@@ -257,6 +137,97 @@ end
 local Capture = torch.class('egomo_calibration.Capture', calib)
 
 
+function Capture:calcCamPoseFromDesired2dPatternPoints(borderWidth, radius, pattern_in_robot)
+  local intrinsics = self.intrinsics
+  local w = self.imwidth
+  local h = self.imheight
+
+  local ul_3d = {x = 0, y = 0}
+  local ur_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = 0}
+  local lr_3d = {x = (self.pattern.height-1) * self.pattern.pointDistance , y = (self.pattern.width*2-2) * self.pattern.pointDistance}
+  local ll_3d = {x = 0, y =  (self.pattern.width*2-2) * self.pattern.pointDistance}
+
+  --local ul_3d = {x = 0, y = 0}
+  --local ur_3d = {x = 0, y = 0.230}
+  --local ll_3d = {x = 0.138, y = 0}
+  --local lr_3d = {x = 0.138, y = 0.230}
+
+
+  local p3d = torch.zeros(4,1,3);
+  p3d[1][1][1] = ul_3d.y
+  p3d[1][1][2] = ul_3d.x
+
+  p3d[2][1][1] = ur_3d.y
+  p3d[2][1][2] = ur_3d.x
+
+  p3d[3][1][1] = lr_3d.y
+  p3d[3][1][2] = lr_3d.x
+
+  p3d[4][1][1] = ll_3d.y
+  p3d[4][1][2] = ll_3d.x
+
+    --Three corner points of our image
+    local ul = {x = 0 + borderWidth + radius, y = 0 + borderWidth + radius}
+    local ur = {x = w - borderWidth - radius, y = 0 + borderWidth + radius}
+    local lr = {x = w - borderWidth - radius, y = h - borderWidth - radius}
+    local ll = {x = 0 + borderWidth, y = h - borderWidth - radius}
+
+
+    --Add some noise
+    ul.x = ul.x + (math.random() - 0.5) * radius
+    ul.y = ul.y + (math.random() - 0.5) * radius
+
+    ur.x = ur.x + (math.random() - 0.5) * radius
+    ur.y = ur.y + (math.random() - 0.5) * radius
+
+    lr.x = lr.x + (math.random() - 0.5) * radius
+    lr.y = lr.y + (math.random() - 0.5) * radius
+
+    local img = torch.ByteTensor(h, w, 3):zero()
+
+    cv.circle{img = img, center = ul, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = ur, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = lr, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+    cv.circle{img = img, center = ll, radius = 3, color = {80,80,255,1}, thickness = 5, lineType = cv.LINE_AA}
+
+
+    local p2d = torch.zeros(4,1,2);
+    p2d[1][1][1] = ul.x
+    p2d[1][1][2] = ul.y
+
+    p2d[2][1][1] = ur.x
+    p2d[2][1][2] = ur.y
+
+    p2d[3][1][1] = lr.x
+    p2d[3][1][2] = lr.y
+
+    p2d[4][1][1] = ll.x
+    p2d[4][1][2] = ll.y
+
+    local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=p3d, imagePoints=p2d, cameraMatrix=self.intrinsics, distCoeffs=torch.zeros(5,1), flags = cv.CALIB_EPNP}
+
+
+
+    local H = torch.eye(4,4)
+    H[{{1,3},{1,3}}] = xamla3d.calibration.RotVectorToRotMatrix(pose_cam_rot_vector)
+    H[{{1,3},4}] = pose_cam_trans
+
+
+    local pp_3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
+    for i = 1,pp_3d:size()[1] do
+      local projection = xamla3d.projectPoint(self.intrinsics, H, pp_3d[{i,1,{}}])
+       cv.circle{img = img, center = {x = projection[1], y = projection[2]}, radius = 10, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}
+    end
+
+    print("----H----")
+    print(H)
+    print(pattern_in_robot * torch.inverse(H) * torch.inverse(self.heye))
+    cv.imshow{"Pattern projected", img}
+    cv.waitKey{-1}
+
+     return pattern_in_robot * H
+end
+
 function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.output_path = output_path
   self.pictures_per_position = pictures_per_position or 5
@@ -312,7 +283,7 @@ function Capture:findPattern()
 
   local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
   if ok then
-    local circlePositions = calcPointPositions{pointsX=self.pattern.width, pointsY=self.pattern.height, pointDistance=self.pattern.pointDistance}
+    local circlePositions = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
     local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=circlePositions, imagePoints=pattern_points, cameraMatrix=self.intrinsics, distCoeffs=self.distortion}
     if not pose_found then
       error('could not calculate pose from calibration pattern')
@@ -330,8 +301,6 @@ function Capture:findPattern()
     local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
 
     local pattern_center_world = robot_pose * self.heye * pattern_pose * offset
-    print("Target point in search!")
-    print(pattern_center_world)
 
 
 
@@ -431,11 +400,6 @@ end
 
 
 local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
-    -- default values
-  print("Capture for hand-Eye: ")
-  print(capForHandEye)
-  print("intrinsics:")
-  print(self.intrinsics)
 
   min_radius = min_radius or 0.17   -- min and max distance from target
   max_radius = max_radius or 0.19
@@ -443,7 +407,9 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
   target_jitter = target_jitter or 0.015
   capForHandEye = capForHandEye or false
 
-  local targetPoint = pattern_center_world
+  local targetPoint = pattern_center_world:view(4,1)[{{1,3},1}]
+  -- pattern in world coordinates
+  local t = robot_pose * self.heye * transfer
 
   print('identified target point:')
   print(targetPoint)
@@ -459,18 +425,35 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
   while i < count do
 
     -- generate random point in positive half shere
+    local sphereTh = 0.96
+    if capForHandEye then
+      sphereTh = 0.93
+    end
+
     local origin
     while true do
-      origin = torch.randn(3)
+      origin = torch.randn(4)
       origin[3] = math.max(0.01, math.abs(origin[3]))
       origin:div(origin:norm())
-      if origin[3] > 0.96 then
+      if origin[3] > sphereTh then
         break
       end
     end
-
+    --Lets express the position we want to look to relative to our pattern
+    -- The targets z-axis goes into the table so we have a negative z-value w.r.t. pattern
+    -- scale this vector to the desired length
     origin:mul(torch.lerp(min_radius, max_radius, math.random()))
-    origin:add(targetPoint)
+    origin[3] = origin[3] * -1 --z is going into the table
+    offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
+    origin:add(offset)
+    origin[4] = 1 --make homogenoous vector
+
+    -- bring the vector that is given relative to target to robot coordinates
+    origin = robot_pose * self.heye * transfer * origin
+
+    origin = origin:view(4,1)[{{1,3},1}]
+    print("----------Origin..........")
+    print(origin)
 
     local target = targetPoint + math.random() * target_jitter - 0.5 * target_jitter
 
@@ -493,6 +476,9 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
       movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
       self.webcam:SetFocusValue(5)
     end
+
+    --print("MovePose")
+    --print(movePose)
 
     if checkPatternInImage(self, movePose, pattern_points_base) and  self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
@@ -587,7 +573,7 @@ local function CreatePose(pos, rot)
 end
 
 ---
--- This function calculates the robot pose (TCP) that is required to rotate the camera around 
+-- This function calculates the robot pose (TCP) that is required to rotate the camera around
 -- its image axis x, y, z (where x represents the axis that is associated with the width of the
 -- image and y the height of the image. Z is the vector that is associated with the viewing ray
 -- passing the cameras center. The rotation order is x,y,z
@@ -601,13 +587,13 @@ function Capture:addRotationAroundCameraAxes(robot_pose, rot_x_degree, rot_y_deg
   local tfPose = tf.Transform()
   tfPose:fromTensor(pose_cam)
   local b=tfPose:getRotation()
-  
-  b = b:mul(tf.Quaternion({1,0,0}, math.rad(rot_x_degree) ))  
+
+  b = b:mul(tf.Quaternion({1,0,0}, math.rad(rot_x_degree) ))
   b = b:mul(tf.Quaternion({0,1,0}, math.rad(rot_y_degree) ))
   b = b:mul(tf.Quaternion({0,0,1}, math.rad(rot_z_degree) ))
   local c = tfPose:getOrigin()
   local next_pose = CreatePose(c, b)
-  next_pose = next_pose * torch.inverse(self.heye)  
+  next_pose = next_pose * torch.inverse(self.heye)
   return next_pose
 end
 
@@ -637,7 +623,7 @@ end
 -- increase the movement. This guarantees enough variation to estimate the intrinsic
 -- camera parameters.
 -- @param focus_setting the focus value the camera should be set to.
--- 
+--
 function Capture:acquireForApproxFocalLength(focus_setting)
 
   local images_pattern = {}
@@ -658,7 +644,7 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 	local scale_tensor = torch.Tensor({1,1,2})
     local scale_rot = 10
     local z_offset = 0.05
-	if #images_pattern < 10 then      
+	if #images_pattern < 10 then
       --scale_tensor = torch.zeros(3)
       scale_rot = #images_pattern * 2
       z_offset = #images_pattern *0.01
@@ -667,7 +653,7 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
 	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
 	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random() - 0.5) * scale_tensor[3])
-	
+
 	local jittered_cam_pose = (robot_pose * self.heye)
 	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
 	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
@@ -676,9 +662,9 @@ function Capture:acquireForApproxFocalLength(focus_setting)
     local deg_y = (math.random()-0.5) * scale_rot
     local deg_z = (math.random()-0.5) * scale_rot
 
-	
 
-    robot_pose = self:addRotationAround(robot_pose, deg_x, deg_y, deg_z)
+
+    robot_pose = self:addRotationAroundCameraAxes(robot_pose, deg_x, deg_y, deg_z)
     print("Going to pose:")
     print(robot_pose)
 
@@ -713,18 +699,19 @@ function Capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_b
   local file_prefix = string.format('intrinsic_')
   local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
 
-  table.insert(capture_data_files, pose_data_filename)
+  --table.insert(capture_data_files, pose_data_filename)
 end
 
 
-function Capture:captureForHandEye(pattern_pose, robot_pose, pattern_center_world)
-  local capture_output_path = path.join(self.output_path, "handeye")
+function Capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world, fname)
+  fname = fname or "handeye"
+  local capture_output_path = path.join(self.output_path, fname)
   mkdir_recursive(capture_output_path)    -- ensure output directory exists
 
   local file_prefix = string.format('handeye_')
   local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
 
-  table.insert(capture_data_files, pose_data_filename)
+  --table.insert(capture_data_files, pose_data_filename)
 end
 
 

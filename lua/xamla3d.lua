@@ -315,8 +315,8 @@ function xamla3d.calibration.calcPatternPointPositions (pointsX, pointsY, pointS
   local i=1
   for y=1, pointsY do
     for x=1, pointsX do
-      corners[i][1][1] = (2*(x-1) + (y-1)%2) * pointSize
-      corners[i][1][2] = (y-1)*pointSize
+      corners[i][1][1] = (2*(x-1) + (y-1)%2) * pointSize + pointSize
+      corners[i][1][2] = (y-1)*pointSize + pointSize
       corners[i][1][3] = 0
       i = i+1
     end
