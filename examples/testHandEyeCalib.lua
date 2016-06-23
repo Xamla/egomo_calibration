@@ -8,16 +8,42 @@ require 'cv.calib3d'
 require 'cv.imgcodecs'
 require 'cv.features2d'
 
+function printMatrixAsTorchTensor(m)
+--if (m:nDimensions() ~= 2) then
+-- return
+--end
 
-local dir= "/home/hoppe/data/cam_calib_ir/irCalibC/"
-robotPoses = torch.load(path.join(dir, "irCalib_000059.t7"))
+local write = io.write
 
-local intrinsics = torch.load('/home/hoppe/data/cam_calib_ir/irCalibB/irCalib_camIntrinsic_ir.t7')[6]
-local distortion = torch.load('/home/hoppe/data/cam_calib_ir/irCalibB/irCalib_camIntrinsic_ir.t7')[7]
+write("a = torch.DoubleTensor({\n")
+for i = 1,m:size()[1] do
+  write("{")
+  for j = 1,m:size()[2] do
+  write(m[i][j].. ",")
+  end
+  write("},\n")
+end
+
+write("})\n")
+
+end
+
+
+
+local dir= "/home/hoppe/data/2016-06-03/pose001/"
+robotPoses = torch.load(path.join(dir, "pose001_.t7"))
+
+local intrinsics = torch.load(dir..'/intrinsics.t7').intrinsics
+local distortion = torch.load(dir..'/intrinsics.t7').distCoeffs
+
+print("Intrinsics")
+print(intrinsics)
+print(distortion)
 
 local patternSize = {}
-patternSize.width = 4
-patternSize.height = 11
+patternSize.width = 8
+patternSize.height = 21
+circlesDistance = 0.008
 
 
 local posesPattern = {}
@@ -30,10 +56,10 @@ local Hc = {}
 
  for i = 1, #robotPoses.MoveitPose do
     if robotPoses.MoveitPose[i] ~= nil then    
-      local fn = dir.."/"..robotPoses.FileName[i].."_ir.png"
+      local fn = dir.."/"..robotPoses.FileName[i].."_web.png"
       print(fn)
       local image = cv.imread{fn}    
-      local found, pose_4x4 = xamla3d.calibration.getPoseFromTarget (image, intrinsics, distortion, patternSize, 0.023)       
+      local found, pose_4x4 = xamla3d.calibration.getPoseFromTarget (image, intrinsics, distortion, patternSize, circlesDistance)       
     
       if found then     
         table.insert(Hg, robotPoses.MoveitPose[i].full)
@@ -42,11 +68,11 @@ local Hc = {}
   end
 end
   
-local HE, error = calib.handEye.calibrateViaCrossValidation(Hg, Hc, 30, 1000) -- 30 has to be smaller then nImg
+local HE, error = calib.handEye.calibrateViaCrossValidation(Hg, Hc, 20, 1000)
 print("Max error: " ..torch.max(torch.abs(error)))
 print("Mean:      " ..torch.mean(torch.abs(error)))
 print("Variance:  " ..torch.var(torch.abs(error)))
-print(HE)
+printMatrixAsTorchTensor(HE)
 
 
 

@@ -30,10 +30,19 @@ end
 
 
 local patterns = {
+<<<<<<< Updated upstream
   { directory='/data/ur5_calibration/2016-06-13/pose001', robotPoses='pose001_.t7' },
 --  { directory='/data/ur5_calibration/2016-06-11/pose002', robotPoses='pose002_.t7' },
 --  { directory='/data/ur5_calibration/2016-06-11/pose004', robotPoses='pose004_.t7' },
 --  { directory='/data/ur5_calibration/2016-06-11/pose005', robotPoses='pose005_.t7' },
+=======
+  { directory='/home/hoppe/data/2016-06-03/pose001/', robotPoses='pose001_.t7' },
+  { directory='/home/hoppe/data/2016-06-03/pose002/', robotPoses='pose002_.t7' },
+  { directory='/home/hoppe/data/2016-06-03/pose003/', robotPoses='pose003_.t7' },
+  --{ directory='/data/ur5_calibration/2016-05-11/pose002', robotPoses='pose002_.t7' },
+  --{ directory='/data/ur5_calibration/2016-05-11/pose004', robotPoses='pose004_.t7' },
+  --{ directory='/data/ur5_calibration/2016-05-11/pose005', robotPoses='pose005_.t7' },
+>>>>>>> Stashed changes
   --{ directory='/data/ur5_calibration/2016-05-11/pose006', robotPoses='pose006_.t7' },
   --{ directory='/data/ur5_calibration/2016-05-11/pose007', robotPoses='pose007_.t7' }
 }
@@ -56,7 +65,16 @@ p2.robotPoses = torch.load(path.join(p2.directory, "spheresurface_000115.t7"))
 table.insert(patterns, p2)
 ]]
 
-local robotCalibration = calib.Calibration()
+local patternGeom = {}
+patternGeom.width = 8
+patternGeom.height = 21
+patternGeom.circleSpacing = 8
+
+imWidth = 2304
+imHeight = 1536
+
+
+local robotCalibration = calib.Calibration(patternGeom, imWidth, imHeight)
 local calibrated = false
 for p = 1,1 do
   local directory = patterns[p].directory
@@ -75,18 +93,28 @@ for p = 1,1 do
 
     robotCalibration:addImage(image, robotPoses.MoveitPose[i], robotPoses.JointPos[i], p)
   end
+<<<<<<< Updated upstream
   --if not calibrated and (#robotCalibration.images > 15 or p == #patterns) then
   --if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
   --if not calibrated and (#robotCalibration.images > 20 or p == #patterns) then
   if p == 1 then
     robotCalibration:runCameraCalibration()
+=======
+  if not calibrated and (#robotCalibration.images > 80 or p == #patterns) then
+    robotCalibration:runCameraCalibration(true)
+>>>>>>> Stashed changes
     calibrated = true
   end
 end
 
+<<<<<<< Updated upstream
 os.exit()
 
 local best, robotCalibrationData = robotCalibration:DHCrossValidate(0.6, 20)
+=======
+
+local best, robotCalibrationData = robotCalibration:DHCrossValidate(0.8, 20)
+>>>>>>> Stashed changes
 
 print("Best Result:")
 print("Training   Error:"..best.trainingError)

@@ -172,7 +172,31 @@ function Capture:calcCamPoseFromDesired2dPatternPoints(borderWidth, radius, patt
 
   p3d[4][1][1] = ll_3d.y
   p3d[4][1][2] = ll_3d.x
+  
+   local pp_3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
+    for i = 1,pp_3d:size()[1] do      
+       cv.circle{img = test_img, center = {x = pp_3d[i][1][1]*2000, y = pp_3d[i][1][2]*2000}, radius = 2, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}       
+    end
+    
+    local wp = self.pattern.width
+    local wh = self.pattern.height
+    
+    local npts = pp_3d:size()[1]
+    
+    cv.circle{img = test_img, center = {x = pp_3d[1][1][1]*2000, y = pp_3d[1][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
+    cv.circle{img = test_img, center = {x = pp_3d[wp][1][1]*2000, y = pp_3d[wp][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
+    cv.circle{img = test_img, center = {x = pp_3d[npts-wp][1][1]*2000, y = pp_3d[npts-wp][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
+    cv.circle{img = test_img, center = {x = pp_3d[npts-wp+1][1][1]*2000, y = pp_3d[npts-wp+1][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
+     
+    cv.imshow{"Pattern", test_img}
+    cv.waitKey{-1}
+  
 
+  print(p3d)
+
+
+
+  for i = 1,100 do
     --Three corner points of our image
     local ul = {x = 0 + borderWidth + radius, y = 0 + borderWidth + radius}
     local ur = {x = w - borderWidth - radius, y = 0 + borderWidth + radius}
@@ -231,9 +255,84 @@ function Capture:calcCamPoseFromDesired2dPatternPoints(borderWidth, radius, patt
     print(pattern_in_robot * torch.inverse(H) * torch.inverse(self.heye))
     cv.imshow{"Pattern projected", img}
     cv.waitKey{-1}
+  end
 
      return pattern_in_robot * H
 end
+
+
+
+--[[
+  transform a rotation vector as e.g. provided by solvePnP to a 3x3 rotation matrix using the Rodrigues' rotation formula
+  see e.g. http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#void%20Rodrigues%28InputArray%20src,%20OutputArray%20dst,%20OutputArray%20jacobian%29
+
+  Input parameters:
+    vec = vector to transform
+  Return value:
+    3x3 rotation matrix
+]]
+local function rotVectorToRotMatrix(vec)
+  local theta = torch.norm(vec)
+  local r = vec/theta
+  r = torch.squeeze(r)
+  local mat = torch.Tensor({{0, -1*r[3], r[2]}, {r[3], 0, -1*r[1]}, {-1*r[2], r[1], 0}})
+  r = r:resize(3,1)
+  local result = torch.eye(3)*math.cos(theta) + (r*r:t())*(1-math.cos(theta)) + mat*math.sin(theta)
+  return result
+end
+
+
+local function saveImages(path, prefix, count, imgIR, imgWeb)
+  local fileName=string.format("%s_%06i", prefix, count)
+  if imgIR then
+   local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_ir.png", img=imgIR}
+    if not saveSuccess then
+      print("Could not save "..path.."/"..fileName.."_ir.png")
+      return false
+    end
+  end
+  if imgWeb then
+    local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_web.png", img=imgWeb}
+    if not saveSuccess then
+      print("Could not save "..path.."/"..fileName.."_web.png")
+      return false
+    end
+  end
+  return fileName
+end
+
+
+local function savePoses(path, prefix, count, poseData)
+  local fileName
+  if not count==nil then
+    fileName=string.format("%s_%06i.t7", prefix, count)
+  else
+    fileName=string.format("%s.t7", prefix)
+  end
+  torch.save(path.."/"..fileName, poseData, ascii)
+
+  return fileName
+end
+
+
+local function mkdir_recursive(dir_path)
+  dir_path = path.abspath(dir_path)
+  local dir_names = string.split(dir_path, "/")
+  local current_path = '/'
+  for i,fn in ipairs(dir_names) do
+    current_path = path.join(current_path, fn)
+
+    if not path.exists(current_path) then
+      path.mkdir(current_path)
+    elseif path.isfile(current_path) then
+      error("Cannot create directory. File is in the way: '" .. current_path .. "'.'")
+    end
+  end
+end
+
+
+local Capture = torch.class('egomo_calibration.Capture', calib)
+
 
 function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.output_path = output_path
@@ -308,6 +407,8 @@ function Capture:findPattern()
     local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
 
     local pattern_center_world = robot_pose * self.heye * pattern_pose * offset
+    print("Target point in search!")
+    print(pattern_center_world)
 
 
 
@@ -407,6 +508,11 @@ end
 
 
 local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
+    -- default values
+  print("Capture for hand-Eye: ")
+  print(capForHandEye)
+  print("intrinsics:")
+  print(self.intrinsics)
 
   local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.8, (self.pattern.height - 1) * self.pattern.pointDistance)
   if optimal_distance < 0.1 then
