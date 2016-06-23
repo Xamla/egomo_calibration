@@ -331,8 +331,55 @@ local function mkdir_recursive(dir_path)
 end
 
 
-local Capture = torch.class('egomo_calibration.Capture', calib)
+function Capture:removeGrabFunction(name)
+  if self.grab_functions[name] ~= nil then
+     self.grab_functions[name] = nil
+     return true
+  end  
+  return false
+end
 
+
+function Capture:addGrabFunctions(name, fct_name, instance)
+
+  assert(type(fct_name) == "function")
+  assert(type(name) == "string")
+
+  local fct_call = {}
+  fct_call.name = name
+  fct_call.instance = instance
+  fct_call.fct_name = fct_name
+  table.insert(self.grab_functions, fct_call) 
+
+  
+end
+
+function Capture:doGrabbing()
+  
+  local pose_data = {}
+  
+  local images = {}
+  for i = 1,#self.grab_functions do
+    local fct_call = self.grab_functions[i]
+    local img = nil
+    
+    if fct_call.instance == nil then
+      img = fct_call.fct_name()
+    else
+      img = fct_call.fct_name(fct_call.instance)
+    end     
+    images[fct_call.name] = img    
+  end
+  
+   pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
+   local ur5state = self.roboControl:ReadUR5data()
+   pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
+   pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state)   
+  
+ 
+  return images, pose_data
+  
+end
 
 function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.output_path = output_path
@@ -354,6 +401,12 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.pattern = { width = 8, height = 21, pointDistance = 0.008 }
   self.imwidth = 960
   self.imheight = 720
+  self.grab_functions = {}  
+  self.image_saver = calib.ImageSaver(output_path)
+  
+  self:addGrabFunctions("__Web", self.grabImageGray, self)
+  
+  
 end
 
 function Capture:setDefaultCameraValues(heye, pattern)
@@ -606,9 +659,14 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
       if imgIR == nil then
         print("IR image is nil")
       end
+      
+      local images, poses = self.doGrabbing()
 
       local ok,pattern_points = cv.findCirclesGrid{image=imgWeb, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if (ok) then
+        self.image_saver:addCorrespondingImages(images, poses)
+      
+      
         poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
         local ur5state = self.roboControl:ReadUR5data()
         poseData["UR5Pose"][i] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
