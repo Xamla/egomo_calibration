@@ -29,7 +29,7 @@ local function initializeRobot(self, velocity_scaling)
      {563, 0, 322},
      {0, 562, 240},
      {0, 0, 1}})
-  local depthcam = egomoTools.structureio:new(camIntrinsicsIR)
+  local depthcam = egomoTools.structureio:new(camIntrinsicsIR, "egomo_depthcam")
   depthcam:Connect()
   depthcam:SetProjectorStatus(false)
   depthcam:SetIRresolution(640, 480)
@@ -58,6 +58,13 @@ local function showImage(img, winName, delay)
   end
 end
 
+---
+-- This functions calcuates the distance that is required to image a specific length in world units
+-- in pixel. Example: Which distance the camera has to have if it wants to project a 2cm object to
+-- 50 pixel.
+local function calcDistanceToTarget(focal_length, width_in_px, width_in_world)
+  return (focal_length / (0.5*width_in_px)) * (width_in_world*0.5)
+end
 
 
 --[[
@@ -251,8 +258,8 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
 end
 
 function Capture:setDefaultCameraValues(heye, pattern)
-  --self.heye = heye
-  --self.pattern = pattern
+  self.heye = heye
+  self.pattern = pattern
   initializeRobot(self, velocity_scaling or 0.5)
 end
 
@@ -401,8 +408,15 @@ end
 
 local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
 
-  min_radius = min_radius or 0.17   -- min and max distance from target
-  max_radius = max_radius or 0.19
+  local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.8, (self.pattern.height - 1) * self.pattern.pointDistance)
+  if optimal_distance < 0.1 then
+    print(string.format("Optimal distance to target would be %fm. But we set it to 0.1 for safety reasons", optimal_distance) )
+    optimal_distance = 0.1
+  end
+
+
+  min_radius = min_radius or optimal_distance - 0.01   -- min and max distance from target
+  max_radius = max_radius or optimal_distance + 0.01
   focus = focus or 20
   target_jitter = target_jitter or 0.015
   capForHandEye = capForHandEye or false
@@ -452,8 +466,6 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
     origin = robot_pose * self.heye * transfer * origin
 
     origin = origin:view(4,1)[{{1,3},1}]
-    print("----------Origin..........")
-    print(origin)
 
     local target = targetPoint + math.random() * target_jitter - 0.5 * target_jitter
 
@@ -472,7 +484,8 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
       print("Adapt parameters for hand - eye")
       local polarAngle = math.random()*180 - 90
       local azimuthalAngle = math.random()*60 - 30
-      local radius = min_radius +0.20 +(max_radius - min_radius)*math.random()
+      local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.5, (self.pattern.height - 1) * self.pattern.pointDistance)
+      local radius = optimal_distance + (0.04)*math.random()
       movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
       self.webcam:SetFocusValue(5)
     end
@@ -483,6 +496,11 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
     if checkPatternInImage(self, movePose, pattern_points_base) and  self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
       local imgWeb, imgIR = self:grabImage()
+      print("imgIR")
+      if imgIR == nil then
+        print("IR image is nil")
+      end
+
       local ok,pattern_points = cv.findCirclesGrid{image=imgWeb, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if (ok) then
         poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
@@ -509,10 +527,21 @@ function Capture:showLiveView()
     local img = self.webcam:GrabJPEGstreamROS()
     if img ~= nil then
       cnt_nil = 0
+      local img_gray = cv.cvtColor{src = img:type("torch.ByteTensor"), code = cv.COLOR_BGR2GRAY}
+      if img_gray:size()[2] < 640 then
+        img_gray = cv.resize{src= img_gray, fx = 2, fy = 2}
+      end
+      local pattern_found = self:isPatternInImg(img_gray)
+      if pattern_found then
+         cv.circle{img = img, center = {x = 20, y = 20}, radius = 20, color = {0,255,0,1}, thickness = 5, lineType = cv.LINE_AA}
+      else
+         cv.circle{img = img, center = {x = 20, y = 20}, radius = 20, color = {0,0,255,1}, thickness = 5, lineType = cv.LINE_AA}
+      end
       cv.imshow{"Live View", img}
       local key = cv.waitKey{30}
       if key == 1048689 then --q
         cv.destroyAllWindows{}
+        cv.waitKey{20}
         return
       end
     else

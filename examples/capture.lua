@@ -79,9 +79,9 @@ local function main()
   local velocity_scaling = 0.5
 
   local pattern = {}
-  pattern.width = 8
-  pattern.height = 21
-  pattern.pointDistance = 0.008
+  pattern.width = 4
+  pattern.height = 11
+  pattern.pointDistance = 0.023
 
   --Ask user if parameters of pattern are correct
   if askForPattern(pattern) then
