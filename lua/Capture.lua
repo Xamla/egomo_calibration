@@ -68,11 +68,6 @@ end
 
 
 --[[
-]]
-
-
-
---[[
   transform a rotation vector as e.g. provided by solvePnP to a 3x3 rotation matrix using the Rodrigues' rotation formula
   see e.g. http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#void%20Rodrigues%28InputArray%20src,%20OutputArray%20dst,%20OutputArray%20jacobian%29
 
@@ -282,55 +277,6 @@ local function rotVectorToRotMatrix(vec)
 end
 
 
-local function saveImages(path, prefix, count, imgIR, imgWeb)
-  local fileName=string.format("%s_%06i", prefix, count)
-  if imgIR then
-   local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_ir.png", img=imgIR}
-    if not saveSuccess then
-      print("Could not save "..path.."/"..fileName.."_ir.png")
-      return false
-    end
-  end
-  if imgWeb then
-    local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_web.png", img=imgWeb}
-    if not saveSuccess then
-      print("Could not save "..path.."/"..fileName.."_web.png")
-      return false
-    end
-  end
-  return fileName
-end
-
-
-local function savePoses(path, prefix, count, poseData)
-  local fileName
-  if not count==nil then
-    fileName=string.format("%s_%06i.t7", prefix, count)
-  else
-    fileName=string.format("%s.t7", prefix)
-  end
-  torch.save(path.."/"..fileName, poseData, ascii)
-
-  return fileName
-end
-
-
-local function mkdir_recursive(dir_path)
-  dir_path = path.abspath(dir_path)
-  local dir_names = string.split(dir_path, "/")
-  local current_path = '/'
-  for i,fn in ipairs(dir_names) do
-    current_path = path.join(current_path, fn)
-
-    if not path.exists(current_path) then
-      path.mkdir(current_path)
-    elseif path.isfile(current_path) then
-      error("Cannot create directory. File is in the way: '" .. current_path .. "'.'")
-    end
-  end
-end
-
-
 function Capture:removeGrabFunction(name)
   if self.grab_functions[name] ~= nil then
      self.grab_functions[name] = nil
@@ -350,8 +296,6 @@ function Capture:addGrabFunctions(name, fct_name, instance)
   fct_call.instance = instance
   fct_call.fct_name = fct_name
   table.insert(self.grab_functions, fct_call) 
-
-  
 end
 
 function Capture:doGrabbing()
@@ -404,9 +348,11 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.grab_functions = {}  
   self.image_saver = calib.ImageSaver(output_path)
   
-  self:addGrabFunctions("__Web", self.grabImageGray, self)
   
-  
+end
+
+function Capture:setImageSaver(image_saver)
+  self.image_saver = image_saver
 end
 
 function Capture:setDefaultCameraValues(heye, pattern)
@@ -619,11 +565,8 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
     origin[3] = origin[3] * -1 --z is going into the table
     offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
     origin:add(offset)
-    origin[4] = 1 --make homogenoous vector
-
-    -- bring the vector that is given relative to target to robot coordinates
-    origin = robot_pose * self.heye * transfer * origin
-
+    origin[4] = 1 --make homogenoous vector    
+    origin = robot_pose * self.heye * transfer * origin -- bring the vector that is given relative to target to robot coordinates
     origin = origin:view(4,1)[{{1,3},1}]
 
     local target = targetPoint + math.random() * target_jitter - 0.5 * target_jitter
@@ -649,18 +592,10 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
       self.webcam:SetFocusValue(5)
     end
 
-    --print("MovePose")
-    --print(movePose)
-
     if checkPatternInImage(self, movePose, pattern_points_base) and  self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
-      local imgWeb, imgIR = self:grabImage()
-      print("imgIR")
-      if imgIR == nil then
-        print("IR image is nil")
-      end
-      
-      local images, poses = self.doGrabbing()
+      local imgWeb, imgIR = self:grabImage()     
+      local images, poses = self:doGrabbing()
 
       local ok,pattern_points = cv.findCirclesGrid{image=imgWeb, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if (ok) then
@@ -825,49 +760,43 @@ function Capture:acquireForApproxFocalLength(focus_setting)
 
   self.webcam:SetFocusValue(focus_setting)
   local current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
-
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
 
   local x_cam,y_cam,z_cam = self:getCameraAxesInRobotBase(current_robot_pose)
 
   while(#images_pattern < 8) do
-
     local robot_pose = current_robot_pose:clone()
 
-	local scale_tensor = torch.Tensor({1,1,2})
+	  local scale_tensor = torch.Tensor({1,1,2})
     local scale_rot = 10
     local z_offset = 0.05
-	if #images_pattern < 10 then
+	  if #images_pattern < 10 then
       --scale_tensor = torch.zeros(3)
       scale_rot = #images_pattern * 2
       z_offset = #images_pattern *0.01
-	end
+	  end
 
-	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
-	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
-	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random() - 0.5) * scale_tensor[3])
-
-	local jittered_cam_pose = (robot_pose * self.heye)
-	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
-	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
-
+  	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
+  	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
+  	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random() - 0.5) * scale_tensor[3])
+  
+  	local jittered_cam_pose = (robot_pose * self.heye)
+  	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
+  	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
+  
     local deg_x = (math.random()-0.5) * scale_rot
     local deg_y = (math.random()-0.5) * scale_rot
     local deg_z = (math.random()-0.5) * scale_rot
-
-
-
+  
+  
+  
     robot_pose = self:addRotationAroundCameraAxes(robot_pose, deg_x, deg_y, deg_z)
-    print("Going to pose:")
-    print(robot_pose)
-
+    
     if self.roboControl:MoveRobotTo(robot_pose) then
       sys.sleep(0.1)  -- wait for controller position convergence
       local img = self:grabImage()
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
-      cv.imshow{"Grab!", img}
-      cv.waitKey{-1}
-
+  
       if ok then
         print("Image pattern found!")
         table.insert(images_pattern, img)

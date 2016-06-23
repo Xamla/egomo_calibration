@@ -6,6 +6,7 @@ require 'egomo_calibration.Calibration'
 require 'egomo_calibration.Camera'
 require 'egomo_calibration.DepthCamera'
 require 'egomo_calibration.EgomoSensor'
+require 'egomo_calibration.ImageSaver'
 
 local optimizeDH = calib.lib.calib___optimizeDH
 local evaluateDH = calib.lib.calib___evaluateDH

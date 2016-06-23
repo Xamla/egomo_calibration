@@ -2,6 +2,7 @@ local path = require 'pl.path'
 local calib = require 'egomo_calibration'
 local xamla3d = calib.xamla3d
 local ros = require 'ros'
+local egomoTools = require 'egomo-tools'
 
 
 local function askForPattern(pattern)
@@ -55,6 +56,9 @@ local function main()
   --spinner = ros.AsyncSpinner()
   --spinner:start()
 
+  local webcam = egomoTools.webcam:new("egomo_webcam")
+  webcam:ConnectDefault()
+  print("Webcam initialisation finished in main routine.")
 
 
   local egomo = calib.EgomoSensor()
@@ -86,6 +90,9 @@ local function main()
   --Ask user if parameters of pattern are correct
   if askForPattern(pattern) then
     local capture = calib.Capture(output_directory_path, pictures_per_position, velocity_scaling)
+    capture:addGrabFunctions("WEBCAM", webcam.GrabGrayscaleImgROS, webcam)
+    
+    
     capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
 
     -- Visualize the livestream in a window
@@ -112,7 +119,13 @@ local function main()
   if pattern_found then
     print("Pattern found")
     print(pattern_pose)
+    
+    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "intrinsics_new"))
+    capture:setImageSaver(imgSaver)    
     capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+    
+    imgSaver = calib.ImageSaver(path.join(output_directory_path, "handeye_new"))
+    capture:setImageSaver(imgSaver)
     capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
   end
 
