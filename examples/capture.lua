@@ -51,10 +51,10 @@ end
 
 
 local function main()
-  --ros.init('webtest')
-  --ros.Time.init()
-  --spinner = ros.AsyncSpinner()
-  --spinner:start()
+  ros.init('webtest')
+  ros.Time.init()
+  spinner = ros.AsyncSpinner()
+  spinner:start()
 
   local webcam = egomoTools.webcam:new("egomo_webcam")
   webcam:ConnectDefault()
@@ -106,17 +106,17 @@ local function main()
     capture.intrinsics = cam_intrinsics
     print("Approx Camera intrinsics")
     print(cam_intrinsics)
-
+    torch.save(path.join(imgSaver:getPath(), 'approxIntrinsics.t7'), cam_intrinsics)
+    
 
   local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
 
-   local pattern_pose_robot = robot_pose * capture.heye * pattern_pose
-   print("---------Robot Pose-----")
-   print(robot_pose)
-   print("---------Pattern Pose-----")
-   print(pattern_pose)
-
    --capture:calcCamPoseFromDesired2dPatternPoints(100, 50, pattern_pose_robot)
+
+  while pattern_found == false do
+    showLiveView(capture)
+    pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
+  end
 
   if pattern_found then
     print("Pattern found")

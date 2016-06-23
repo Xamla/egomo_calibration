@@ -49,6 +49,10 @@ function ImageSaver:__init(path)
   mkdirRecursive(path)
 end
 
+function ImageSaver:getPath()
+  return self.path
+end
+
 
 function ImageSaver:load()
   self.img_data = torch.load(path.join(self.path, self.filename))

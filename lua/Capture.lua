@@ -381,13 +381,17 @@ end
 function Capture:findPattern()
   local img = self:grabImageGray()
   if img == nil then
+    print("Grabbing failed")
     return false
   end
 
   local robot_pose = self.roboControl:ReadRobotPose(true).full
 
   local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+  cv.imshow{"Circles!", img}
+  cv.waitKey{-1}
   if ok then
+    print("Circles grid found!")
     local circlePositions = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
     local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=circlePositions, imagePoints=pattern_points, cameraMatrix=self.intrinsics, distCoeffs=self.distortion}
     if not pose_found then
@@ -783,7 +787,7 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
 	  local scale_tensor = torch.Tensor({1,1,2})
     local scale_rot = 10
     local z_offset = 0.05
-	  if #images_pattern < 10 then
+    if #images_pattern < 10 then
       --scale_tensor = torch.zeros(3)
       scale_rot = #images_pattern * 2
       z_offset = #images_pattern *0.01
@@ -791,7 +795,7 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
 
   	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
   	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
-  	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random() - 0.5) * scale_tensor[3])
+  	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random()) * scale_tensor[3])
   
   	local jittered_cam_pose = (robot_pose * self.heye)
   	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
@@ -815,8 +819,8 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
         table.insert(patterns, pattern_points)
         table.insert(objectPoints, patternPoints3d)
         
-        if self.imageSaver ~= nil then
-          self.imageSaver.addCorrespondingImages(images, poses)
+        if self.image_saver ~= nil then
+          self.image_saver:addCorrespondingImages(images, poses)
         end
         
       else
