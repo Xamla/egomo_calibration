@@ -100,10 +100,12 @@ local function main()
     -- Capture an image stack and find the best value
     --local bestFocus = capture:getBestFocusPoint()
     --print(string.format("Best focus setting is %d",bestFocus))
-    --local cam_intrinsics = capture:acquireForApproxFocalLength(bestFocus)
-    --capture.intrinsics = cam_intrinsics
-    --print("Approx Camera intrinsics")
-    --print(cam_intrinsics)
+    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "approxFocal_new"))
+    capture:setImageSaver(imgSaver) 
+    local cam_intrinsics = capture:acquireForApproxFocalLength(5, "WEBCAM")
+    capture.intrinsics = cam_intrinsics
+    print("Approx Camera intrinsics")
+    print(cam_intrinsics)
 
 
   local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()

@@ -752,11 +752,24 @@ end
 -- camera parameters.
 -- @param focus_setting the focus value the camera should be set to.
 --
-function Capture:acquireForApproxFocalLength(focus_setting)
+function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
+
+  local found = false
+  for i = 1,#self.grab_functions do
+    if self.grab_functions[i].name == cam_name then
+      found = true
+    end
+  end
+  
+  if found == false then
+    error("No grabbing function with name ".. cam_name .. " registered!")
+  end
+
 
   local images_pattern = {}
   local patterns = {}
   local objectPoints = {}
+  
 
   self.webcam:SetFocusValue(focus_setting)
   local current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
@@ -788,13 +801,12 @@ function Capture:acquireForApproxFocalLength(focus_setting)
     local deg_y = (math.random()-0.5) * scale_rot
     local deg_z = (math.random()-0.5) * scale_rot
   
-  
-  
     robot_pose = self:addRotationAroundCameraAxes(robot_pose, deg_x, deg_y, deg_z)
     
     if self.roboControl:MoveRobotTo(robot_pose) then
       sys.sleep(0.1)  -- wait for controller position convergence
-      local img = self:grabImage()
+      local images, poses = self:doGrabbing()
+      local img = images[cam_name]
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
   
       if ok then
@@ -802,6 +814,11 @@ function Capture:acquireForApproxFocalLength(focus_setting)
         table.insert(images_pattern, img)
         table.insert(patterns, pattern_points)
         table.insert(objectPoints, patternPoints3d)
+        
+        if self.imageSaver ~= nil then
+          self.imageSaver.addCorrespondingImages(images, poses)
+        end
+        
       else
         print("No Image found!")
       end
