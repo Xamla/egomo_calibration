@@ -36,14 +36,14 @@ local ImageSaver = torch.class('egomo_calibration.ImageSaver', calib)
 
 ---
 -- Initializes the image Saver
-function ImageSaver:__init(path)
+function ImageSaver:__init(path, filename)
   
+  self.filename = filename or "imageData.t7"
   self.path = path  
   self.img_data = {}
   self.img_data.filename = {}
   self.img_data.poses = {}
   self.cnt = 1
-  self.filename = "imageData.t7"
   self.curr_image = 1
   
   mkdirRecursive(path)
@@ -56,6 +56,17 @@ end
 
 function ImageSaver:load()
   self.img_data = torch.load(path.join(self.path, self.filename))
+
+ -- store absolute paths
+  for k,v in pairs(self.img_data.filename) do
+    for cnt = 1, #v do
+      local fn = v[cnt]
+      if fn ~= nil then
+        v[cnt] = path.join(self.path, fn)      
+      end
+    end
+  end
+
   
   local max_poses = 0
   
@@ -74,9 +85,9 @@ end
 
 
 function ImageSaver:getNextImage()
-  local images =  self:loadImage(self.curr_image)
+  local images, poses =  self:loadImage(self.curr_image)
   self.curr_image = self.curr_image + 1
-  return images
+  return images, poses
 end
 
 function ImageSaver:getNumberOfImages()
@@ -98,7 +109,7 @@ function ImageSaver:loadImage(cnt)
   for k,v in pairs(self.img_data.filename) do
     local fn = v[cnt]
     if fn ~= nil then
-      local img = cv.imread{path.join(self.path, fn)}
+      local img = cv.imread{fn}
       images[k] = img
     end
   end
@@ -157,3 +168,42 @@ function ImageSaver:addImage(image, file_prefix, pose_info)
   self:addCorrespondingImages(i, pose_info)
   
 end
+
+
+local ImageSaverGroup = torch.class('egomo_calibration.ImageSaverGroup', calib)
+
+function ImageSaverGroup:__init()
+  self.image_saver = {}
+  self.current_image = 1
+  self.cnt = 1
+  self.im_number_to_saver = {}
+  self.im_number_to_local_number = {}
+  
+end
+
+function ImageSaverGroup:addImageSaver(image_saver)
+  table.insert(self.image_saver, image_saver)
+  local n = image_saver:getNumberOfImages()
+  for i = 1,n do
+    self.im_number_to_saver[self.cnt] = image_saver
+    self.im_number_to_local_number[self.cnt] = n
+    self.cnt = self.cnt + 1
+  end
+end
+
+function ImageSaverGroup:loadImage(cnt)
+  if cnt > self.cnt or cnt < 1 then
+    return false
+  end
+  
+  return self.im_number_to_saver[cnt].loadImage(self.im_number_to_local_number[cnt])  
+end
+
+function ImageSaverGroup:getNextImage()
+   self.current_image = self.current_image + 1
+   return self:loadImage(self.current_image-1)  
+end
+
+
+
+

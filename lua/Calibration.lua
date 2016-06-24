@@ -125,7 +125,7 @@ function Calibration:__init(pattern, im_width, im_height, hand_eye, robot_model)
   self.distCoeffs = torch.zeros(5,1)
 
   self.handEye = hand_eye
-  if handEye == nil then
+  if hand_eye == nil then
     self.handEye = torch.Tensor({
       {  0.002505,  0.764157,  0.645025, 15.239477 / 1000.0 },  -- translation in meters (convert for mm)
       { -0.000719, -0.645026,  0.764161, 69.903526 / 1000.0 },
@@ -358,6 +358,11 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     local intrinsics = self.intrinsics:clone()
     local distCoeffs = self.distCoeffs:clone()
     local handEyeInv = torch.inverse(self.handEye)
+    
+    
+    if distCoeffs:size()[1] > distCoeffs:size()[2] then
+      distCoeffs = distCoeffs:t()
+    end
 
     local robotModel, robotJointDir = self.robotModel.dh, self.robotModel.joint_direction
 
@@ -726,6 +731,6 @@ function Calibration:runCameraCalibration(load_existing_calibration)
 
   end
 
-  return true
+  return true, cameraMatrix
 
 end

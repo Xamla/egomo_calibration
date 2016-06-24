@@ -511,18 +511,12 @@ end
 
 
 local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
-    -- default values
-  print("Capture for hand-Eye: ")
-  print(capForHandEye)
-  print("intrinsics:")
-  print(self.intrinsics)
-
+    
   local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.8, (self.pattern.height - 1) * self.pattern.pointDistance)
   if optimal_distance < 0.1 then
     print(string.format("Optimal distance to target would be %fm. But we set it to 0.1 for safety reasons", optimal_distance) )
     optimal_distance = 0.1
   end
-
 
   min_radius = min_radius or optimal_distance - 0.01   -- min and max distance from target
   max_radius = max_radius or optimal_distance + 0.01
@@ -567,7 +561,7 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
     -- scale this vector to the desired length
     origin:mul(torch.lerp(min_radius, max_radius, math.random()))
     origin[3] = origin[3] * -1 --z is going into the table
-    offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
+    local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
     origin:add(offset)
     origin[4] = 1 --make homogenoous vector    
     origin = robot_pose * self.heye * transfer * origin -- bring the vector that is given relative to target to robot coordinates

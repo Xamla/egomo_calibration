@@ -446,6 +446,26 @@ function xamla3d.utils.matchNamesByIdenticalNumber (listOfNames1, listOfNames2)
 end
 
 
+function xamla3d.utils.printMatrixAsTorchTensor(m, name)
+if m:dim() ~= 2 then
+ return
+end
+
+local write = io.write
+
+write(name .." = torch.DoubleTensor({\n")
+for i = 1,m:size()[1] do
+  write("{")
+  for j = 1,m:size()[2] do
+  write(m[i][j].. ",")
+  end
+  write("},\n")
+end
+
+write("})\n")
+
+end
+
 function xamla3d.utils.isFile(name)
   if type(name)~="string" then return false end
   if not isDir(name) then
