@@ -58,6 +58,7 @@ local function main()
 
   local webcam = egomoTools.webcam:new("egomo_webcam")
   webcam:ConnectDefault()
+  webcam:ConnectToJpgStream()
   print("Webcam initialisation finished in main routine.")
 
 
@@ -91,12 +92,14 @@ local function main()
   if askForPattern(pattern) then
     local capture = calib.Capture(output_directory_path, pictures_per_position, velocity_scaling)
     capture:addGrabFunctions("WEBCAM", webcam.GrabGrayscaleImgROS, webcam)
+    capture:addGrabFunctions("WEBCAM_LIVE", webcam.GrabJPEGstreamROS, webcam)
     
     
-    capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
+    
+    --capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
 
     -- Visualize the livestream in a window
-    showLiveView(capture, "WEBCAM")
+    showLiveView(capture, "WEBCAM_LIVE")
     -- Capture an image stack and find the best value
     --local bestFocus = capture:getBestFocusPoint()
     --print(string.format("Best focus setting is %d",bestFocus))

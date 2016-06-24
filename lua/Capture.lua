@@ -176,7 +176,7 @@ end
 ---
 -- removes all grab functions from the list
 function Capture:removeAllGrabFunctions()
-  self.grab_functions() = {}
+  self.grab_functions = {}
 end
 
 ---
@@ -244,9 +244,6 @@ function Capture:doGrabbing(which_camera)
         error([[Trying to grab an image from a camera that does not exist! Please register
         a grab function with this name using addGrabFunctions() ]])
       end
-      
-    end
-    
     end
   end
   
