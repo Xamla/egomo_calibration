@@ -42,10 +42,10 @@ local function askForDHParameter()
 end
 
 
-local function showLiveView(capture)
+local function showLiveView(capture, cam_name)
   print("Please move robot in freedrive mode about 40cm above the pattern!")
   print("If you are done, please press \"q\" ")
-  capture:showLiveView()
+  capture:showLiveView(cam_name)
 end
 
 
@@ -96,11 +96,11 @@ local function main()
     capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
 
     -- Visualize the livestream in a window
-    showLiveView(capture)
+    showLiveView(capture, "WEBCAM")
     -- Capture an image stack and find the best value
     --local bestFocus = capture:getBestFocusPoint()
     --print(string.format("Best focus setting is %d",bestFocus))
-    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "approxFocal_new"))
+    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "approxFocal"))
     capture:setImageSaver(imgSaver) 
     local cam_intrinsics = capture:acquireForApproxFocalLength(5, "WEBCAM")
     capture.intrinsics = cam_intrinsics
@@ -114,7 +114,7 @@ local function main()
    --capture:calcCamPoseFromDesired2dPatternPoints(100, 50, pattern_pose_robot)
 
   while pattern_found == false do
-    showLiveView(capture)
+    showLiveView(capture, "WEBCAM")
     pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
   end
 
@@ -122,11 +122,11 @@ local function main()
     print("Pattern found")
     print(pattern_pose)
     
-    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "intrinsics_new"))
+    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "intrinsics"))
     capture:setImageSaver(imgSaver)    
     capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
     
-    imgSaver = calib.ImageSaver(path.join(output_directory_path, "handeye_new"))
+    imgSaver = calib.ImageSaver(path.join(output_directory_path, "handeye"))
     capture:setImageSaver(imgSaver)
     capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
   end
@@ -134,7 +134,7 @@ local function main()
   local do_dh = askForDHParameter()
   if do_dh then
     for i = 1,3 do
-      showLiveView(capture)
+      showLiveView(capture, "WEBCAM")
       local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
       if pattern_found then
         print("Pattern found")

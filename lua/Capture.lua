@@ -67,75 +67,6 @@ local function calcDistanceToTarget(focal_length, width_in_px, width_in_world)
 end
 
 
---[[
-  transform a rotation vector as e.g. provided by solvePnP to a 3x3 rotation matrix using the Rodrigues' rotation formula
-  see e.g. http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#void%20Rodrigues%28InputArray%20src,%20OutputArray%20dst,%20OutputArray%20jacobian%29
-
-  Input parameters:
-    vec = vector to transform
-  Return value:
-    3x3 rotation matrix
-]]
-local function rotVectorToRotMatrix(vec)
-  local theta = torch.norm(vec)
-  local r = vec/theta
-  r = torch.squeeze(r)
-  local mat = torch.Tensor({{0, -1*r[3], r[2]}, {r[3], 0, -1*r[1]}, {-1*r[2], r[1], 0}})
-  r = r:resize(3,1)
-  local result = torch.eye(3)*math.cos(theta) + (r*r:t())*(1-math.cos(theta)) + mat*math.sin(theta)
-  return result
-end
-
-
-local function saveImages(path, prefix, count, imgIR, imgWeb)
-  local fileName=string.format("%s_%06i", prefix, count)
-  if imgIR then
-   local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_ir.png", img=imgIR}
-    if not saveSuccess then
-      print("Could not save "..path.."/"..fileName.."_ir.png")
-      return false
-    end
-  end
-  if imgWeb then
-    local saveSuccess = cv.imwrite{filename=path.."/"..fileName.."_web.png", img=imgWeb}
-    if not saveSuccess then
-      print("Could not save "..path.."/"..fileName.."_web.png")
-      return false
-    end
-  end
-  return fileName
-end
-
-
-local function savePoses(path, prefix, count, poseData)
-  local fileName
-  if not count==nil then
-    fileName=string.format("%s_%06i.t7", prefix, count)
-  else
-    fileName=string.format("%s.t7", prefix)
-  end
-  torch.save(path.."/"..fileName, poseData, ascii)
-
-  return fileName
-end
-
-
-local function mkdir_recursive(dir_path)
-  dir_path = path.abspath(dir_path)
-  local dir_names = string.split(dir_path, "/")
-  local current_path = '/'
-  for i,fn in ipairs(dir_names) do
-    current_path = path.join(current_path, fn)
-
-    if not path.exists(current_path) then
-      path.mkdir(current_path)
-    elseif path.isfile(current_path) then
-      error("Cannot create directory. File is in the way: '" .. current_path .. "'.'")
-    end
-  end
-end
-
-
 local Capture = torch.class('egomo_calibration.Capture', calib)
 
 
@@ -257,26 +188,15 @@ end
 
 
 
---[[
-  transform a rotation vector as e.g. provided by solvePnP to a 3x3 rotation matrix using the Rodrigues' rotation formula
-  see e.g. http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#void%20Rodrigues%28InputArray%20src,%20OutputArray%20dst,%20OutputArray%20jacobian%29
-
-  Input parameters:
-    vec = vector to transform
-  Return value:
-    3x3 rotation matrix
-]]
-local function rotVectorToRotMatrix(vec)
-  local theta = torch.norm(vec)
-  local r = vec/theta
-  r = torch.squeeze(r)
-  local mat = torch.Tensor({{0, -1*r[3], r[2]}, {r[3], 0, -1*r[1]}, {-1*r[2], r[1], 0}})
-  r = r:resize(3,1)
-  local result = torch.eye(3)*math.cos(theta) + (r*r:t())*(1-math.cos(theta)) + mat*math.sin(theta)
-  return result
+---
+-- removes all grab functions from the list
+function Capture:removeAllGrabFunctions()
+  self.grab_functions() = {}
 end
 
-
+---
+-- removes a grab function with the given name from the table of grab functions
+-- @param string identfier of the function to be removed
 function Capture:removeGrabFunction(name)
   if self.grab_functions[name] ~= nil then
      self.grab_functions[name] = nil
@@ -286,41 +206,99 @@ function Capture:removeGrabFunction(name)
 end
 
 
-function Capture:addGrabFunctions(name, fct_name, instance)
+--- 
+-- Add a grab function. Each grab function is identified by a name. Typically this is
+-- the name of a camera like RGB_side or depth_no_speakle
+-- This name is used later to identify which camera should be grabbed. e.g. the function showLiveView(cam_name)
+-- indirectly calls the grab function with 'cam_name'
+-- @param a string that uniquely identifies the grabbing function, i.e. the camera name or a specific stream
+-- @param fct_handle the function handle
+-- @param instance the instance that is given as 'self' to the function, can be null if it is not a class function 
+function Capture:addGrabFunctions(identifier, fct_handle, instance)
 
-  assert(type(fct_name) == "function")
-  assert(type(name) == "string")
+  assert(type(fct_handle) == "function")
+  assert(type(identifier) == "string")
 
   local fct_call = {}
-  fct_call.name = name
+  fct_call.name = identifier
   fct_call.instance = instance
-  fct_call.fct_name = fct_name
+  fct_call.fct_name = fct_handle
   table.insert(self.grab_functions, fct_call) 
 end
 
-function Capture:doGrabbing()
+
+---
+-- Grabs images / a single image from the registers capturing functions.
+-- you can grab either all cameras at the "same" time or you can select if you 
+-- only want to capture the first camera, or a specific one by providing a name
+-- or all by providing no argument
+-- @param which_camera [optional] Selects which camera should be used for capturing.
+-- If boolean = true then the first camera is captured, if string we capture the 
+-- camera with the given name 
+-- 
+function Capture:doGrabbing(which_camera)
+  local only_first = false
+  local cam_name = nil
+  
+  if which_camera ~= nil then
+    if type(which_camera) == "boolean" then
+      only_first = which_camera
+    elseif type(which_camera) == "string" then
+      cam_name = which_camera
+      -- Lets look if the camera is registered for grabbing
+      local found = false
+      for i = 1,#self.grab_functions do
+        local fct_call = self.grab_functions[i]
+        if fct_call.name == cam_name then
+          found = true
+          break 
+        end
+      end
+      
+      if found == false then
+        error([[Trying to grab an image from a camera that does not exist! Please register
+        a grab function with this name using addGrabFunctions() ]])
+      end
+      
+    end
+    
+    end
+  end
   
   local pose_data = {}
+  local images = {}  
+  local first_image = nil
   
-  local images = {}
+  pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
+  local ur5state = self.roboControl:ReadUR5data()
+  pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
+  pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state) 
+  
+  function call(fct_call)
+    if fct_call.instance == nil then
+      return fct_call.fct_name()
+    else
+      return fct_call.fct_name(fct_call.instance)
+    end      
+  end
+     
+  
   for i = 1,#self.grab_functions do
     local fct_call = self.grab_functions[i]
     local img = nil
     
-    if fct_call.instance == nil then
-      img = fct_call.fct_name()
-    else
-      img = fct_call.fct_name(fct_call.instance)
-    end     
-    images[fct_call.name] = img    
+    if cam_name ~= nil and fct_call.name == cam_name then
+      img = call(fct_call)
+      return img, pose_data
+    elseif only_first then
+       img = call(fct_call)
+      return img, pose_data
+    elseif only_first == false and cam_name == nil then
+      img = call(fct_call)
+      images[fct_call.name] = img
+    end
   end
   
-   pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
-   local ur5state = self.roboControl:ReadUR5data()
-   pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
-   pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state)   
-  
- 
   return images, pose_data
   
 end
@@ -362,24 +340,15 @@ function Capture:setDefaultCameraValues(heye, pattern)
 end
 
 
-function Capture:grabImageGray()
-  return self.webcam:GrabGrayscaleImgROS()
-end
-
-
-function Capture:grabImage()
-  local imgIR = self.depthcam:GrabIRNoSpeckleViaROS()
-  return self.webcam:GrabGrayscaleImgROS(), imgIR
-end
-
-
 function Capture:isPatternInImg(img)
    local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
    return ok
 end
 
-function Capture:findPattern()
-  local img = self:grabImageGray()
+function Capture:findPattern(camera_name)
+  assert(type(camera_name) == "string")
+
+  local img = self:doGrabbing(camera_name)
   if img == nil then
     print("Grabbing failed")
     return false
@@ -387,18 +356,15 @@ function Capture:findPattern()
 
   local robot_pose = self.roboControl:ReadRobotPose(true).full
 
-  local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
-  cv.imshow{"Circles!", img}
-  cv.waitKey{-1}
-  if ok then
-    print("Circles grid found!")
+  local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}  
+  if ok then   
     local circlePositions = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
     local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=circlePositions, imagePoints=pattern_points, cameraMatrix=self.intrinsics, distCoeffs=self.distortion}
     if not pose_found then
       error('could not calculate pose from calibration pattern')
     end
 
-    local pose_cam_rot_matrix = rotVectorToRotMatrix(pose_cam_rot_vector)
+    local pose_cam_rot_matrix =  xamla3d.calibration.RotVectorToRotMatrix(pose_cam_rot_vector)
 
     -- assemble the 4x4 transformation matrix
     local pattern_pose = torch.eye(4)
@@ -430,9 +396,12 @@ function Capture:findPattern()
 end
 
 
-function Capture:searchPatternCircular(center, radius, height)
-  local overview_focus = 10
+function Capture:searchPatternCircular(center, radius, height, camera_name)
+  assert(type(camera_name) == "string")
 
+
+
+  local overview_focus = 10
   self.webcam:SetFocusValue(overview_focus)      -- focus for overview pose
   print(string.format("Set focus for overview pose to %d.", overview_focus))
 
@@ -445,7 +414,7 @@ function Capture:searchPatternCircular(center, radius, height)
     local robot_pose = self.roboControl:WebCamLookAt(p[{{1,3}}], height, math.rad(-30), math.rad(0.5), self.heye)
     if self.roboControl:MoveRobotTo(robot_pose) then
       sys.sleep(0.1)  -- wait for controller position convergence
-      local img = self:grabImage()
+      local img = self:doGrabbing(camera_name)
       cv.imshow{"Image", img}
       cv.waitKey{10}
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
@@ -489,6 +458,13 @@ function Capture:searchPattern()
   error('Search for calibration pattern aborted.')
 end
 
+
+---
+-- This function is thought for simulating if a pattern will be completely visible in the 
+-- camera if the robot moves to a specific pose.
+-- @param self the capturing instance
+-- @param robot_pose the roboter pose that is used for evaluation if image is completely visible in image
+-- @param pattern_points_base table of 3x1 torch.Tensor describing the patterns point 3d coordinates in the image
 local function checkPatternInImage(self, robot_pose, pattern_points_base)
 
   local cam_pos = torch.inverse(robot_pose * self.heye)
@@ -504,13 +480,11 @@ local function checkPatternInImage(self, robot_pose, pattern_points_base)
       return false
     end
   end
-
   return true
-
 end
 
 
-local function captureSphereSampling(self, path, filePrefix, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
+local function captureSphereSampling(self, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
     
   local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.8, (self.pattern.height - 1) * self.pattern.pointDistance)
   if optimal_distance < 0.1 then
@@ -530,13 +504,7 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
 
   print('identified target point:')
   print(targetPoint)
-
-  local poseData = {}
-  poseData["MoveitPose"] = {}
-  poseData["UR5Pose"] = {}
-  poseData["JointPos"] = {}
-  poseData["FileName"] = {}
-
+  
   self.webcam:SetFocusValue(focus)
   local i = 1
   while i < count do
@@ -592,36 +560,26 @@ local function captureSphereSampling(self, path, filePrefix, robot_pose, transfe
 
     if checkPatternInImage(self, movePose, pattern_points_base) and  self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
-      local imgWeb, imgIR = self:grabImage()     
+      
       local images, poses = self:doGrabbing()
-
-      local ok,pattern_points = cv.findCirclesGrid{image=imgWeb, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+      local ok,pattern_points = cv.findCirclesGrid{image=images["WEBCAM"], patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if (ok) then
-        self.image_saver:addCorrespondingImages(images, poses)
-      
-      
-        poseData["MoveitPose"][i] = self.roboControl:ReadRobotPose(true)
-        local ur5state = self.roboControl:ReadUR5data()
-        poseData["UR5Pose"][i] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
-        poseData["JointPos"][i] = self.roboControl:DecodeUR5actualJointState(ur5state)
-        poseData["FileName"][i] = saveImages(path, filePrefix, i, imgIR, imgWeb)
-
-        savePoses(path, filePrefix, i, poseData)
+        self.image_saver:addCorrespondingImages(images, poses)           
         i=i+1
         print("Pattern found! Remaining images: ".. count - i)
       end
     end
   end
-
-  return savePoses(path, filePrefix, nil, poseData)
 end
 
-function Capture:showLiveView()
+function Capture:showLiveView(cam_name)
+
+  assert(type(cam_name) == "string")
 
   local cnt_nil = 0
 
-  while true do
-    local img = self.webcam:GrabJPEGstreamROS()
+  while true do    
+    local img = self:doGrabbing(cam_name)
     if img ~= nil then
       cnt_nil = 0
       local img_gray = cv.cvtColor{src = img:type("torch.ByteTensor"), code = cv.COLOR_BGR2GRAY}
@@ -691,6 +649,8 @@ function Capture:getBestFocusPoint()
 
 end
 
+--- 
+-- Helper function that creates a complete pose given the pose and rotation
 local function CreatePose(pos, rot)
   local pose = tf.Transform()
   pose:setOrigin(pos)
@@ -829,26 +789,28 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
  return camera_matrix, distCoeffs, err_
 end
 
+
+---
+-- Capture a set of images that are thought for calculating the intrinsic parameters
+-- @param pattern_pose 4x4 torch.Tensor pose of pattern with respect to camera. This is what we get from solvePnp for example
+-- @param robot_pose the current robots pose
+-- @param pattern_points_base table of 3x1 torch.Tensor describing the pattern points in robots base coordinates
+-- @param pattern_center_world center of pattern in base coordinates
 function Capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
-  local capture_output_path = path.join(self.output_path, "intrinsic")
-  mkdir_recursive(capture_output_path)    -- ensure output directory exists
+  captureSphereSampling(self, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
 
-  local file_prefix = string.format('intrinsic_')
-  local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
-
-  --table.insert(capture_data_files, pose_data_filename)
 end
 
 
+---
+-- Capture a set of images that are thought for calculating the handeye matrix
+-- @param pattern_pose 4x4 torch.Tensor pose of pattern with respect to camera. This is what we get from solvePnp for example
+-- @param robot_pose the current robots pose
+-- @param pattern_points_base table of 3x1 torch.Tensor describing the pattern points in robots base coordinates
+-- @param pattern_center_world center of pattern in base coordinates
 function Capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world, fname)
-  fname = fname or "handeye"
-  local capture_output_path = path.join(self.output_path, fname)
-  mkdir_recursive(capture_output_path)    -- ensure output directory exists
-
   local file_prefix = string.format('handeye_')
-  local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
-
-  --table.insert(capture_data_files, pose_data_filename)
+   captureSphereSampling(self, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
 end
 
 
@@ -869,16 +831,9 @@ function Capture:run()
     print('Ready? Please press enter.')
     io.stdin:read()
 
-
-
-    local capture_output_path = path.join(self.output_path, string.format('pose%03d', i))
-    mkdir_recursive(capture_output_path)    -- ensure output directory exists
-
     local pattern_pose, robot_pose, pattern_points_base = self:searchPattern()
 
-
-    local file_prefix = string.format('pose%03d_', i)
-    local pose_data_filename = captureSphereSampling(self, capture_output_path, file_prefix, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base)
+    local pose_data_filename = captureSphereSampling(self, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base)
     table.insert(capture_data_files, pose_data_filename)
     i = i + 1
   end
