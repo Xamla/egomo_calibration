@@ -44,21 +44,6 @@ local function initializeRobot(self, velocity_scaling)
 end
 
 
-local function showImage(img, winName, delay)
-  winName = winName or 'Capture Output'
-  local key = 0
-  cv.imshow{winName, img}
-  while not key%256 == string.byte("q") or key%256 == 27 do -- 27: esc key
-    if delay ~= nil then
-      cv.waitKey{delay}
-      return
-    else
-      key=cv.waitKey{-1}
-    end
-  end
-end
-
----
 -- This functions calcuates the distance that is required to image a specific length in world units
 -- in pixel. Example: Which distance the camera has to have if it wants to project a 2cm object to
 -- 50 pixel.
