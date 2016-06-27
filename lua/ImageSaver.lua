@@ -94,6 +94,7 @@ function ImageSaver:getNumberOfImages()
   return self.cnt
 end
 
+
 function ImageSaver:loadImage(cnt)
   if cnt < 1 or cnt > self.cnt then
     return nil
@@ -121,6 +122,13 @@ function ImageSaver:loadImage(cnt)
 
   return images, pose_info
 
+end
+
+function ImageSaver:getImageSize(cam_name)
+  local img = (self:loadImage(1))[cam_name]
+  local w = img:size()[2]
+  local h = img:size()[1]
+  return w, h
 end
 
 

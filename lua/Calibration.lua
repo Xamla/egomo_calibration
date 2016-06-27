@@ -143,10 +143,10 @@ function Calibration:addImage(image, robotPose, jointState, patternId)
   if image == nil or robotPose == nil or jointState == nil then
     error('Invalid arguments')
   end
-  
+
   local pattern = patternId or 1
   self.patternIDs[pattern] = true
- 
+
   local image_item = {
     image = image,
     robotPose = robotPose,
@@ -163,7 +163,7 @@ function Calibration:addImage(image, robotPose, jointState, patternId)
 
   image_item.patternPoints2d = points:clone()
   table.insert(self.images, image_item)
-  
+
 --  print(self.images[#self.images])
 
   return true
@@ -199,22 +199,22 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
 
   local measOffset = 0
   local jointStatesOffset = 0
-  local point3dOffset = 0 
+  local point3dOffset = 0
 
   local intrinsics = self.intrinsics:clone()
   local distCoeffs = self.distCoeffs:clone()
   local handEye = self.handEye:clone()
 
   local robotModel, robotJointDir = self.robotModel.dh, self.robotModel.joint_direction
- 
+
   if calibrationData ~= nil then
     intrinsics = calibrationData.intrinsics
-    distCoeffs = calibrationData.distCoeffs 
+    distCoeffs = calibrationData.distCoeffs
     handEye = calibrationData.handEye
     robotModel = calibrationData.robotModel
-    robotJointDir = calibrationData.joinDir  
+    robotJointDir = calibrationData.joinDir
   else
-    print("Using GLOABAL robotParameters!") 
+    print("Using GLOABAL robotParameters!")
   end
 
   print('Using handEye:')
@@ -229,17 +229,17 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
     assert(jointStatesE)
     assert(points3dE)
     assert(jointPointIndicesE)
-    
+
     measOffset = measurementsE:size()[1]
     jointStatesOffset = jointStatesE:size()[1]
     point3dOffset = points3dE:size()[1]
-    print("Offsets in prepareBA - Measurement: " ..measOffset .. " jointStates: " .. jointStatesOffset .. " points3d: " .. point3dOffset)      
+    print("Offsets in prepareBA - Measurement: " ..measOffset .. " jointStates: " .. jointStatesOffset .. " points3d: " .. point3dOffset)
   end
-  
+
   print("Using ".. #indices .. " cameras for preparing BA Structure")
 
   local patternGeom = {height=self.pattern.height, width=self.pattern.width}
-  
+
   local nPts = self.pattern.height * self.pattern.width
   local poses = {}
   local observations = {}
@@ -260,11 +260,11 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
       table.insert(observations, meas)
     end
   end
-  
+
   local observationT = torch.DoubleTensor(#observations,2)
   local jointpointIndices = torch.LongTensor(#observations,2)
   local jointStates = torch.DoubleTensor(#indices, 6)
-    
+
   for i = 1,#observations do
     observationT[{i,{1,2}}] = observations[i][{{3,4},1}]
     jointpointIndices[{i,{1,2}}] = observations[i][{{1,2},1}]
@@ -279,7 +279,7 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
     local c = intrinsics * torch.inverse(robotPoseWithJointStates * handEye)[{{1,3},{}}]
     table.insert(P, c)
   end
-  
+
   --- make an initial guess for the 3d points by
   for i = 1, nPts do
     local meas = {}
@@ -302,7 +302,7 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
     end
     point3d[{i,{1,3}}] = X:t():clone()
   end
-  
+
   if measurementsE ~= nil then
     measurementsE = torch.cat(measurementsE, observationT, 1)
     jointPointIndicesE = torch.cat(jointPointIndicesE, jointpointIndices, 1)
@@ -314,7 +314,7 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
   end
 
 end
- 
+
 
 function Calibration:getImageIndicesForPattern(patternID)
   local indices = {}
@@ -328,38 +328,38 @@ end
 
 
 function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
-   
+
   local validationErrors = {}
 
   for i = 1,iterations do
-     
+
     local observations, jointPointIndices, jointStates, points3d = nil
 
     local idxForValidationPerPattern = {}
 
     for k,v in ipairs(self.patternIDs) do
-    
+
       local idxPattern = self:getImageIndicesForPattern(k)
-      local nTraining = math.floor(#idxPattern * trainTestSplitPercentage)              
-      xamla3d.shuffleTable(idxPattern)       
+      local nTraining = math.floor(#idxPattern * trainTestSplitPercentage)
+      xamla3d.shuffleTable(idxPattern)
       local idxTraining = {unpack (idxPattern, 1, nTraining)}
       local idxValidation = {unpack (idxPattern, nTraining+1, #idxPattern)}
-      
+
       table.insert(idxForValidationPerPattern, idxValidation)
-                  
+
       observations, jointPointIndices, jointStates, points3d = self:prepareBAStructureWithImageIDs(idxTraining, observations, jointPointIndices, jointStates, points3d)
 
     end
 
-    --local indices = torch.randperm(nImages):view(nImages,1):clone()    
+    --local indices = torch.randperm(nImages):view(nImages,1):clone()
     --local idxTraining = torch.totable(indices[{{1,nTraining},1}])
     --local idxValidation = torch.totable(indices[{{nTraining+1, indices:size()[1]},1}])
 
     local intrinsics = self.intrinsics:clone()
     local distCoeffs = self.distCoeffs:clone()
     local handEyeInv = torch.inverse(self.handEye)
-    
-    
+
+
     if distCoeffs:size()[1] > distCoeffs:size()[2] then
       distCoeffs = distCoeffs:t()
     end
@@ -386,7 +386,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       true       -- optimize_joint_states
     )
 
-    print("Error after optimizing HandEye:                 "..init_error)     
+    print("Error after optimizing HandEye:                 "..init_error)
 
     local init_error = calib.optimizeDH(intrinsics,
       distCoeffs,
@@ -404,9 +404,9 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_alpha
       false      -- optimize_joint_states
     )
-                   
+
     print("Error Initial:                                     " .. init_error)
-    
+
     local training_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
@@ -425,7 +425,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     )
 
     optimization_path  = optimization_path .. "(points + theta + alpha)"
-      
+
     local training_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
@@ -448,7 +448,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
  --[[
       local training_error = calib.optimizeDH(intrinsics,
                  distCoeffs,
-                 handEyeInv,   
+                 handEyeInv,
                  jointStates,
                  robotModel,
                  points3d,
@@ -461,25 +461,25 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
                  false,     -- optimize_robot_model_a
                  false,     -- optimize_robot_model_alpha
                  false      -- optimize_joint_states
-                 )  
+                 )
     optimization_path  = optimization_path .. "(handEye + points)"
 ]]
-                   
+
     print("Error after optim of theta and alpha (Training):    " .. training_error)
-  
+
     local calibData = {}
     calibData.intrinsics = intrinsics
     calibData.distCoeffs = distCoeffs
     calibData.handEye = torch.inverse(handEyeInv)
     calibData.robotModel = robotModel
-    calibData.joinDir = { 1, -1, -1, -1, 1, -1 }     
-  
+    calibData.joinDir = { 1, -1, -1, -1, 1, -1 }
+
     local observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal = nil
     for k = 1,#idxForValidationPerPattern do
       local idxValidation = idxForValidationPerPattern[k]
        observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal = self:prepareBAStructureWithImageIDs(idxValidation, observationsVal, jointPointIndicesVal, jointStatesVal, points3dVal, calibData)
     end
-  
+
     local validation_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
@@ -497,19 +497,19 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false      -- optimize_joint_states
     )
     print("Error after optim of theta and alpha (Validation): " .. validation_error)
-    
+
     local tmp = {}
     tmp.validationError = validation_error
     tmp.trainingError = training_error
     tmp.calibData  = calibData
     tmp.trainingIndices = idxTraining
-    table.insert(validationErrors, tmp)  
+    table.insert(validationErrors, tmp)
     tmp.optimizationPath = optimization_path
   end
-  
+
   table.sort(validationErrors, function(a,b) return a.validationError < b.validationError end)
 
-  local best = validationErrors[1]  
+  local best = validationErrors[1]
   return best, best.calibData
 end
 
@@ -517,11 +517,11 @@ end
 function Calibration:runBAMultiplePatterns()
 
   local observations, jointPointIndices, jointStates, points3d = nil
-  
+
   for k,v in ipairs(self.patternIDs) do
     observations, jointPointIndices, jointStates, points3d = self:prepareBAStructureForPattern(k, observations, jointPointIndices, jointStates, points3d)
   end
-  
+
   print("Intrinsics")
   print(self.intrinsics)
   print("DistCoeffs")
@@ -559,7 +559,7 @@ function Calibration:runBAMultiplePatterns()
   ]]
 
   local point3dBefore = points3d:clone()
-  
+
   local final_error = calib.optimizeDH(
     self.intrinsics,
     self.distCoeffs,
@@ -591,15 +591,15 @@ function Calibration:runBAMultiplePatterns()
   v:addCoordinateSystem(0.5)
   ptsPcl = pcl.rand(points3d:size()[1])
   ptsPcl2 = pcl.rand(points3d:size()[1])
-  
+
   for i = 1, points3d:size()[1] do
     ptsPcl:points()[{1,i,{1,3}}] = points3d[{i, {}}]
-    ptsPcl2:points()[{1,i,{1,3}}] = point3dBefore[{i, {}}]  
+    ptsPcl2:points()[{1,i,{1,3}}] = point3dBefore[{i, {}}]
   end
   v:addPointCloud(ptsPcl, 'ref')
   v:setPointCloudRenderingProperties3(pcl.RenderingProperties.PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, 'ref')
   v:setPointCloudRenderingProperties1(pcl.RenderingProperties.PCL_VISUALIZER_POINT_SIZE, 3, 'ref');
-  
+
   v:addPointCloud(ptsPcl2, 'ref2')
   v:setPointCloudRenderingProperties3(pcl.RenderingProperties.PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, 'ref2')
   v:setPointCloudRenderingProperties1(pcl.RenderingProperties.PCL_VISUALIZER_POINT_SIZE, 3, 'ref2');
@@ -624,9 +624,9 @@ function Calibration:runBAMultiplePatterns()
     true,      -- optimize_robot_model_alpha
     false      -- optimize_joint_states
   )
-  
+
   print("Last error: "..final_error)
-  
+
   print("HandEye after:")
   self.handEye = torch.inverse(handEye_inv)
   print(self.handEye)
@@ -639,8 +639,8 @@ function Calibration:runBAMultiplePatterns()
   calibData.handEye = self.handEye
   calibData.robotModel = self.robotModel
   calibData.joinDir = { 1, -1, -1, -1, 1, -1 }
-  
-  torch.save("robotCalibration.t7", calibData)  
+
+  torch.save("robotCalibration.t7", calibData)
 
   v:spin()
 end
@@ -707,7 +707,7 @@ function Calibration:runCameraCalibration(load_existing_calibration)
   print(cameraMatrix)
   print("Distortions")
   print(distCoeffs)
-  
+
   torch.save("intrinsics.t7", { intrinsics = cameraMatrix, distCoeffs = distCoeffs })
 
   self.intrinsics = cameraMatrix
@@ -731,6 +731,6 @@ function Calibration:runCameraCalibration(load_existing_calibration)
 
   end
 
-  return true, cameraMatrix
+  return true, cameraMatrix, distCoeffs
 
 end

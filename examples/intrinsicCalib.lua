@@ -8,8 +8,9 @@ local calib = require 'egomo_calibration'
 local xamla3d = calib.xamla3d
 
 
-local imageSaver =  calib.ImageSaver('/home/hoppe/data/2016-06-23/intrinsics_new/')
+local imageSaver =  calib.ImageSaver('/data/ur5_calibration/2016-06-27/WEBCAM/intrinsics/')
 imageSaver:load()
+
 
 local camera_name = "WEBCAM"
 
@@ -19,8 +20,7 @@ patternGeom.width = 4
 patternGeom.height = 11
 patternGeom.circleSpacing = 0.023
 
-local imWidth = 960
-local imHeight = 720
+local imWidth, imHeight = imageSaver:getImageSize(camera_name)
 
 local robotCalibration = calib.Calibration(patternGeom, imWidth, imHeight)
 
