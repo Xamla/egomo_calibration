@@ -83,25 +83,25 @@ function Capture:calcCamPoseFromDesired2dPatternPoints(borderWidth, radius, patt
 
   p3d[4][1][1] = ll_3d.y
   p3d[4][1][2] = ll_3d.x
-  
+
    local pp_3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
-    for i = 1,pp_3d:size()[1] do      
-       cv.circle{img = test_img, center = {x = pp_3d[i][1][1]*2000, y = pp_3d[i][1][2]*2000}, radius = 2, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}       
+    for i = 1,pp_3d:size()[1] do
+       cv.circle{img = test_img, center = {x = pp_3d[i][1][1]*2000, y = pp_3d[i][1][2]*2000}, radius = 2, color = {255,255,255,1}, thickness = 1, lineType = cv.LINE_AA}
     end
-    
+
     local wp = self.pattern.width
     local wh = self.pattern.height
-    
+
     local npts = pp_3d:size()[1]
-    
+
     cv.circle{img = test_img, center = {x = pp_3d[1][1][1]*2000, y = pp_3d[1][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
     cv.circle{img = test_img, center = {x = pp_3d[wp][1][1]*2000, y = pp_3d[wp][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
     cv.circle{img = test_img, center = {x = pp_3d[npts-wp][1][1]*2000, y = pp_3d[npts-wp][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
     cv.circle{img = test_img, center = {x = pp_3d[npts-wp+1][1][1]*2000, y = pp_3d[npts-wp+1][1][2]*2000}, radius = 2, color = {64,64,64,1}, thickness = 2, lineType = cv.LINE_AA}
-     
+
     cv.imshow{"Pattern", test_img}
     cv.waitKey{-1}
-  
+
 
   print(p3d)
 
@@ -186,19 +186,19 @@ function Capture:removeGrabFunction(name)
   if self.grab_functions[name] ~= nil then
      self.grab_functions[name] = nil
      return true
-  end  
+  end
   return false
 end
 
 
---- 
+---
 -- Add a grab function. Each grab function is identified by a name. Typically this is
 -- the name of a camera like RGB_side or depth_no_speakle
 -- This name is used later to identify which camera should be grabbed. e.g. the function showLiveView(cam_name)
 -- indirectly calls the grab function with 'cam_name'
 -- @param a string that uniquely identifies the grabbing function, i.e. the camera name or a specific stream
 -- @param fct_handle the function handle
--- @param instance the instance that is given as 'self' to the function, can be null if it is not a class function 
+-- @param instance the instance that is given as 'self' to the function, can be null if it is not a class function
 function Capture:addGrabFunctions(identifier, fct_handle, instance)
 
   assert(type(fct_handle) == "function")
@@ -208,23 +208,23 @@ function Capture:addGrabFunctions(identifier, fct_handle, instance)
   fct_call.name = identifier
   fct_call.instance = instance
   fct_call.fct_name = fct_handle
-  table.insert(self.grab_functions, fct_call) 
+  table.insert(self.grab_functions, fct_call)
 end
 
 
 ---
 -- Grabs images / a single image from the registers capturing functions.
--- you can grab either all cameras at the "same" time or you can select if you 
+-- you can grab either all cameras at the "same" time or you can select if you
 -- only want to capture the first camera, or a specific one by providing a name
 -- or all by providing no argument
 -- @param which_camera [optional] Selects which camera should be used for capturing.
--- If boolean = true then the first camera is captured, if string we capture the 
--- camera with the given name 
--- 
+-- If boolean = true then the first camera is captured, if string we capture the
+-- camera with the given name
+--
 function Capture:doGrabbing(which_camera)
   local only_first = false
   local cam_name = nil
-  
+
   if which_camera ~= nil then
     if type(which_camera) == "boolean" then
       only_first = which_camera
@@ -236,39 +236,39 @@ function Capture:doGrabbing(which_camera)
         local fct_call = self.grab_functions[i]
         if fct_call.name == cam_name then
           found = true
-          break 
+          break
         end
       end
-      
+
       if found == false then
         error([[Trying to grab an image from a camera that does not exist! Please register
         a grab function with this name using addGrabFunctions() ]])
       end
     end
   end
-  
+
   local pose_data = {}
-  local images = {}  
+  local images = {}
   local first_image = nil
-  
+
   pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
   local ur5state = self.roboControl:ReadUR5data()
   pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
-  pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state) 
-  
+  pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state)
+
   function call(fct_call)
     if fct_call.instance == nil then
       return fct_call.fct_name()
     else
       return fct_call.fct_name(fct_call.instance)
-    end      
+    end
   end
-     
-  
+
+
   for i = 1,#self.grab_functions do
     local fct_call = self.grab_functions[i]
     local img = nil
-    
+
     if cam_name ~= nil and fct_call.name == cam_name then
       img = call(fct_call)
       return img, pose_data
@@ -280,9 +280,9 @@ function Capture:doGrabbing(which_camera)
       images[fct_call.name] = img
     end
   end
-  
+
   return images, pose_data
-  
+
 end
 
 function Capture:__init(output_path, pictures_per_position, velocity_scaling)
@@ -305,10 +305,10 @@ function Capture:__init(output_path, pictures_per_position, velocity_scaling)
   self.pattern = { width = 8, height = 21, pointDistance = 0.008 }
   self.imwidth = 960
   self.imheight = 720
-  self.grab_functions = {}  
+  self.grab_functions = {}
   self.image_saver = calib.ImageSaver(output_path)
-  
-  
+
+
 end
 
 function Capture:setImageSaver(image_saver)
@@ -338,8 +338,8 @@ function Capture:findPattern(camera_name)
 
   local robot_pose = self.roboControl:ReadRobotPose(true).full
 
-  local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}  
-  if ok then   
+  local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+  if ok then
     local circlePositions = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
     local pose_found, pose_cam_rot_vector, pose_cam_trans=cv.solvePnP{objectPoints=circlePositions, imagePoints=pattern_points, cameraMatrix=self.intrinsics, distCoeffs=self.distortion}
     if not pose_found then
@@ -442,7 +442,7 @@ end
 
 
 ---
--- This function is thought for simulating if a pattern will be completely visible in the 
+-- This function is thought for simulating if a pattern will be completely visible in the
 -- camera if the robot moves to a specific pose.
 -- @param self the capturing instance
 -- @param robot_pose the roboter pose that is used for evaluation if image is completely visible in image
@@ -466,8 +466,55 @@ local function checkPatternInImage(self, robot_pose, pattern_points_base)
 end
 
 
-local function captureSphereSampling(self, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
-    
+function Capture:capturePatternFrontoParallel(cam_name_ir, robot_pose, pattern_pose, pattern_center_world, min_dist, max_dist)
+
+  local current_dist = min_dist
+  pattern_center_world = pattern_center_world:view(4,1)[{{1,3},1}]
+
+  print(current_dist)
+
+  while current_dist < max_dist do
+    current_dist = current_dist + 0.01
+    local z_vector = torch.Tensor({0, 0, -1 * current_dist, 1})
+    local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 0})
+    z_vector:add(offset)
+    print("Z-Vector")
+    print(z_vector)
+
+
+    local cam_origin = robot_pose * self.heye * pattern_pose * z_vector
+    cam_origin = cam_origin / cam_origin[4]
+
+    print("Cam origin!")
+    print(cam_origin)
+
+    cam_origin = cam_origin:view(4,1)[{{1,3},1}]
+
+
+    print(cam_origin)
+    print(pattern_center_world)
+
+    local t = robot_pose * self.heye * pattern_pose
+    local up = t[{1,{1,3}}]
+
+    local movePose = self.roboControl:PointAtPose(cam_origin, pattern_center_world, up, self.heye)
+    print(movePose)
+    if self.roboControl:MoveRobotTo(movePose) then
+      sys.sleep(0.2)    -- wait for controller position convergence
+
+      local images, poses = self:doGrabbing()
+      local ok,pattern_points = cv.findCirclesGrid{image=images[cam_name_ir], patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+      if (ok) then
+        self.image_saver:addCorrespondingImages(images, poses)
+      end
+    end
+  end
+
+
+end
+
+local function captureSphereSampling(self, cam_name, robot_pose, transfer, count, capForHandEye, pattern_points_base, pattern_center_world, min_radius, max_radius, focus, target_jitter)
+
   local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.8, (self.pattern.height - 1) * self.pattern.pointDistance)
   if optimal_distance < 0.1 then
     print(string.format("Optimal distance to target would be %fm. But we set it to 0.1 for safety reasons", optimal_distance) )
@@ -486,8 +533,8 @@ local function captureSphereSampling(self, robot_pose, transfer, count, capForHa
 
   print('identified target point:')
   print(targetPoint)
-  
-  self.webcam:SetFocusValue(focus)
+
+  --self.webcam:SetFocusValue(focus)
   local i = 1
   while i < count do
 
@@ -513,7 +560,7 @@ local function captureSphereSampling(self, robot_pose, transfer, count, capForHa
     origin[3] = origin[3] * -1 --z is going into the table
     local offset = torch.Tensor({self.pattern.pointDistance * self.pattern.width, 0.5 * self.pattern.pointDistance * self.pattern.height, 0, 1})
     origin:add(offset)
-    origin[4] = 1 --make homogenoous vector    
+    origin[4] = 1 --make homogenoous vector
     origin = robot_pose * self.heye * transfer * origin -- bring the vector that is given relative to target to robot coordinates
     origin = origin:view(4,1)[{{1,3},1}]
 
@@ -537,16 +584,21 @@ local function captureSphereSampling(self, robot_pose, transfer, count, capForHa
       local optimal_distance = calcDistanceToTarget(self.intrinsics[1][1], self.imwidth*0.5, (self.pattern.height - 1) * self.pattern.pointDistance)
       local radius = optimal_distance + (0.04)*math.random()
       movePose = self.roboControl:WebCamLookAt(target, radius, math.rad(polarAngle), math.rad(azimuthalAngle), self.heye, math.random(1)-1)
-      self.webcam:SetFocusValue(5)
+      --self.webcam:SetFocusValue(5)
+    end
+
+    local inImage = checkPatternInImage(self, movePose, pattern_points_base)
+    if not inImage then
+      --print("Not in image!")
     end
 
     if checkPatternInImage(self, movePose, pattern_points_base) and  self.roboControl:MoveRobotTo(movePose) then
       sys.sleep(0.2)    -- wait for controller position convergence
-      
+
       local images, poses = self:doGrabbing()
-      local ok,pattern_points = cv.findCirclesGrid{image=images["WEBCAM"], patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
+      local ok,pattern_points = cv.findCirclesGrid{image=images[cam_name], patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
       if (ok) then
-        self.image_saver:addCorrespondingImages(images, poses)           
+        self.image_saver:addCorrespondingImages(images, poses)
         i=i+1
         print("Pattern found! Remaining images: ".. count - i)
       end
@@ -560,11 +612,16 @@ function Capture:showLiveView(cam_name)
 
   local cnt_nil = 0
 
-  while true do    
+  while true do
     local img = self:doGrabbing(cam_name)
     if img ~= nil then
+      img = img:squeeze()
       cnt_nil = 0
-      local img_gray = cv.cvtColor{src = img:type("torch.ByteTensor"), code = cv.COLOR_BGR2GRAY}
+      local img_gray = img:clone()
+      if img:dim() == 3 then
+        img_gray = cv.cvtColor{src = img, code = cv.COLOR_BGR2GRAY}
+      end
+
       if img_gray:size()[2] < 640 then
         img_gray = cv.resize{src= img_gray, fx = 2, fy = 2}
       end
@@ -631,7 +688,7 @@ function Capture:getBestFocusPoint()
 
 end
 
---- 
+---
 -- Helper function that creates a complete pose given the pose and rotation
 local function CreatePose(pos, rot)
   local pose = tf.Transform()
@@ -700,7 +757,7 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
       found = true
     end
   end
-  
+
   if found == false then
     error("No grabbing function with name ".. cam_name .. " registered!")
   end
@@ -709,13 +766,14 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
   local images_pattern = {}
   local patterns = {}
   local objectPoints = {}
-  
 
-  self.webcam:SetFocusValue(focus_setting)
+
+  --self.webcam:SetFocusValue(focus_setting)
   local current_robot_pose = self.roboControl:ReadRobotPose(true).full:clone()
   local patternPoints3d = xamla3d.calibration.calcPatternPointPositions(self.pattern.width, self.pattern.height, self.pattern.pointDistance)
 
   local x_cam,y_cam,z_cam = self:getCameraAxesInRobotBase(current_robot_pose)
+  local imwidth, imheight = 0
 
   while(#images_pattern < 8) do
     local robot_pose = current_robot_pose:clone()
@@ -725,47 +783,49 @@ function Capture:acquireForApproxFocalLength(focus_setting, cam_name)
     local z_offset = 0.05
     if #images_pattern < 10 then
       --scale_tensor = torch.zeros(3)
-      scale_rot = #images_pattern * 2
+      --scale_rot = #images_pattern * 2
       z_offset = #images_pattern *0.01
 	  end
 
-  	local x_offset = x_cam * 0.04 * (math.random() - 0.5) * scale_tensor[1]
-  	local y_offset = y_cam * 0.04 * (math.random() - 0.5) * scale_tensor[2]
+  	local x_offset = x_cam * 0.07 * (math.random() - 0.5) * scale_tensor[1]
+  	local y_offset = y_cam * 0.07 * (math.random() - 0.5) * scale_tensor[2]
   	local z_offset = (z_cam * z_offset) + (z_cam * 0.04 * (math.random()) * scale_tensor[3])
-  
+
   	local jittered_cam_pose = (robot_pose * self.heye)
   	jittered_cam_pose[{{1,3},{4}}] = jittered_cam_pose[{{1,3},{4}}] + x_offset + y_offset + z_offset
   	robot_pose = jittered_cam_pose * torch.inverse(self.heye)
-  
+
     local deg_x = (math.random()-0.5) * scale_rot
     local deg_y = (math.random()-0.5) * scale_rot
     local deg_z = (math.random()-0.5) * scale_rot
-  
+
     robot_pose = self:addRotationAroundCameraAxes(robot_pose, deg_x, deg_y, deg_z)
-    
+
+
     if self.roboControl:MoveRobotTo(robot_pose) then
       sys.sleep(0.1)  -- wait for controller position convergence
       local images, poses = self:doGrabbing()
       local img = images[cam_name]
       local ok,pattern_points = cv.findCirclesGrid{image=img, patternSize={height=self.pattern.height, width=self.pattern.width}, flags=cv.CALIB_CB_ASYMMETRIC_GRID}
-  
+      imheight = img:size()[1]
+      imwidth = img:size()[2]
       if ok then
         print("Image pattern found!")
         table.insert(images_pattern, img)
         table.insert(patterns, pattern_points)
         table.insert(objectPoints, patternPoints3d)
-        
+
         if self.image_saver ~= nil then
           self.image_saver:addCorrespondingImages(images, poses)
         end
-        
+
       else
         print("No Image found!")
       end
     end
   end
 
-  local err_, camera_matrix, distCoeffs, rvecs, tvecs = cv.calibrateCamera{objectPoints=objectPoints, imagePoints=patterns, imageSize={self.imwidth, self.imheight}, flag=cv.CALIB_ZERO_TANGENT_DIST+cv.CALIB_FIX_K3 + cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2}
+  local err_, camera_matrix, distCoeffs, rvecs, tvecs = cv.calibrateCamera{objectPoints=objectPoints, imagePoints=patterns, imageSize={imwidth, imheight}, flag=cv.CALIB_ZERO_TANGENT_DIST+cv.CALIB_FIX_K3 + cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2}
   -- Move back to the initial position
   self.roboControl:MoveRobotTo(current_robot_pose)
  return camera_matrix, distCoeffs, err_
@@ -778,8 +838,8 @@ end
 -- @param robot_pose the current robots pose
 -- @param pattern_points_base table of 3x1 torch.Tensor describing the pattern points in robots base coordinates
 -- @param pattern_center_world center of pattern in base coordinates
-function Capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
-  captureSphereSampling(self, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
+function Capture:captureForIntrinsics(cam_name, pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+  captureSphereSampling(self, cam_name, robot_pose, pattern_pose, self.pictures_per_position, false, pattern_points_base, pattern_center_world)
 
 end
 
@@ -790,9 +850,9 @@ end
 -- @param robot_pose the current robots pose
 -- @param pattern_points_base table of 3x1 torch.Tensor describing the pattern points in robots base coordinates
 -- @param pattern_center_world center of pattern in base coordinates
-function Capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world, fname)
+function Capture:captureForHandEye(cam_name, pattern_pose, robot_pose, pattern_points_base, pattern_center_world, fname)
   local file_prefix = string.format('handeye_')
-   captureSphereSampling(self, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
+   captureSphereSampling(self, cam_name, robot_pose, pattern_pose, self.pictures_per_position, true, pattern_points_base, pattern_center_world)
 end
 
 
