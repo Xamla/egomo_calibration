@@ -2,7 +2,6 @@ local calib = require 'egomo_calibration.env'
 local torch = require 'torch'
 local xamla3d = require 'egomo_calibration.xamla3d'
 
-
 local cv = require 'cv'
 require 'cv.highgui'
 require 'cv.imgproc'
@@ -25,6 +24,9 @@ end
 
 -- Coordinates have to be provided as 3x1 tensors, not in homogene coordinates
 local function PlaneLineIntersection(normalPlane, pointPlane, lineVector, camCenter)
+   lineVector = lineVector / lineVector:norm()
+   normalPlane = normalPlane / normalPlane:norm()
+
    local denom = torch.dot(normalPlane, lineVector)
    local intersect
    local length
@@ -37,10 +39,7 @@ local function PlaneLineIntersection(normalPlane, pointPlane, lineVector, camCen
 end
 
 
-
-
 local DepthCalibrator = torch.class('egomo_calibration.DepthCalibrator', calib)
-
 
 function DepthCalibrator:__init(intrinsic, distortion, pattern_geometry)
   self.intrinsic = intrinsic
@@ -86,12 +85,14 @@ function DepthCalibrator:doCalibration()
       local P = self.intrinsic*pose[{{1,3}, {1,4}}]
       local Pinv = pinv(P)
       local center_line = Pinv * cam_center
-      local intersection_pt, distance = PlaneLineIntersection(pattern_normal,pattern_origin, center_line,  pose[{{1,3}, 4}])     
+      center_line = center_line / center_line[4]      
+      center_line = center_line:view(4,1)[{{1,3},1}]     
+      local intersection_pt, distance = PlaneLineIntersection(pattern_normal,pattern_origin, center_line:squeeze(),  pose[{{1,3}, 4}])     
       
       local depth_at_center = 0
-      local depth_img = self.depth_data[i]
+      local depth_img = self.depth_data[i]:squeeze()
       local cnt = 0 
-       
+      
       for j = -1,1 do
         for k = -1, 1 do
            local x = self.intrinsic[1][3] + j
@@ -114,15 +115,21 @@ function DepthCalibrator:doCalibration()
 
   local points_to_fit = torch.Tensor(#corr_depth.pattern, 2)
   for p = 1, #corr_depth.pattern do
-    points_to_fit[p][1] = corr_depth.pattern[p]
-    points_to_fit[p][2] = corr_depth.depth_img[p]
-    
-    print(string.format("Pattern depth: %f Depth in image: %f",  points_to_fit[p][1],  points_to_fit[p][2]))
-    
+    points_to_fit[p][1] = corr_depth.depth_img[p]
+    points_to_fit[p][2] = corr_depth.pattern[p]
+        
   end
   
   local a,b = fitData(points_to_fit)
   print(string.format("Scale factor %f", a))
   print(string.format("Offset %f", b))
+  
+  for p = 1, #corr_depth.pattern do
+    local error = (a * points_to_fit[p][1] + b) - points_to_fit[p][2]          
+    print(string.format("Pattern depth: %f Depth in image: %f (error: %fmm)",  points_to_fit[p][1],  points_to_fit[p][2], error*1000))
+    
+  end
+  
+  
   
 end
