@@ -99,7 +99,7 @@ local function main()
     --capture:setDefaultCameraValues(egomo.side_cam_hand_eye, pattern)
 
     -- Visualize the livestream in a window
-    showLiveView(capture, "WEBCAM_LIVE")
+    showLiveView(capture, "WEBCAM")
     -- Capture an image stack and find the best value
     --local bestFocus = capture:getBestFocusPoint()
     --print(string.format("Best focus setting is %d",bestFocus))
@@ -113,8 +113,6 @@ local function main()
     
 
   local pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
-
-   --capture:calcCamPoseFromDesired2dPatternPoints(100, 50, pattern_pose_robot)
 
   while pattern_found == false do
     showLiveView(capture, "WEBCAM")

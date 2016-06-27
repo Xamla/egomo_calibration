@@ -244,6 +244,7 @@ function Capture:doGrabbing(which_camera)
         error([[Trying to grab an image from a camera that does not exist! Please register
         a grab function with this name using addGrabFunctions() ]])
       end
+      
     end
   end
   
@@ -251,10 +252,10 @@ function Capture:doGrabbing(which_camera)
   local images = {}  
   local first_image = nil
   
-  pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
-  local ur5state = self.roboControl:ReadUR5data()
-  pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
-  pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state) 
+  --pose_data["MoveitPose"] = self.roboControl:ReadRobotPose(true)
+  --local ur5state = self.roboControl:ReadUR5data()
+  --pose_data["UR5Pose"] = self.roboControl:DecodeUR5TcpPose(ur5state, true)
+  --pose_data["JointPos"]= self.roboControl:DecodeUR5actualJointState(ur5state) 
   
   function call(fct_call)
     if fct_call.instance == nil then
@@ -564,7 +565,11 @@ function Capture:showLiveView(cam_name)
     local img = self:doGrabbing(cam_name)
     if img ~= nil then
       cnt_nil = 0
-      local img_gray = cv.cvtColor{src = img:type("torch.ByteTensor"), code = cv.COLOR_BGR2GRAY}
+      local img_gray = img
+      
+      if img:dim() == 3 then --only if it is a color image we have to convert it to grayscale
+        img_gray = cv.cvtColor{src = img:type("torch.ByteTensor"), code = cv.COLOR_BGR2GRAY}
+      end
       if img_gray:size()[2] < 640 then
         img_gray = cv.resize{src= img_gray, fx = 2, fy = 2}
       end
