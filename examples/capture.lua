@@ -177,6 +177,23 @@ local function main()
 
   doCaptureProcess(capture, "DEPTHCAM_NO_SPECKLE", path.join(output_directory_path, "DEPTHCAM_NO_SPECKLE"), pattern, egomo.side_cam_depth_hand_eye)
 
+  while pattern_found == false do
+    showLiveView(capture, "WEBCAM")
+    pattern_found, pattern_pose, robot_pose, pattern_points_base, pattern_center_world = capture:findPattern()
+  end
+
+  if pattern_found then
+    print("Pattern found")
+    print(pattern_pose)
+    
+    local imgSaver = calib.ImageSaver(path.join(output_directory_path, "intrinsics"))
+    capture:setImageSaver(imgSaver)    
+    capture:captureForIntrinsics(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+    
+    imgSaver = calib.ImageSaver(path.join(output_directory_path, "handeye"))
+    capture:setImageSaver(imgSaver)
+    capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world)
+  end
 
   local do_dh = askForDHParameter()
   if do_dh then
@@ -188,6 +205,12 @@ local function main()
         capture:captureForHandEye(pattern_pose, robot_pose, pattern_points_base, pattern_center_world, string.format("dh_%03d", i))
       end
     end
+  end
+
+
+
+  else
+    print("Calibration cancelled! Change your calibration board!")
   end
 
 

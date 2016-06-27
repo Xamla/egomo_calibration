@@ -29,30 +29,41 @@ write("})\n")
 end
 
 
+local imageSaver =  calib.ImageSaver('/home/hoppe/data/2016-06-23/handeye_new/')
+imageSaver:load()
 
-local dir= "/home/hoppe/data/2016-06-03/pose001/"
-robotPoses = torch.load(path.join(dir, "pose001_.t7"))
+
 
 local intrinsics = torch.load(dir..'/intrinsics.t7').intrinsics
 local distortion = torch.load(dir..'/intrinsics.t7').distCoeffs
-
 print("Intrinsics")
 print(intrinsics)
 print(distortion)
 
+local circlesDistance = 0.023
 local patternSize = {}
-patternSize.width = 8
-patternSize.height = 21
-circlesDistance = 0.008
+patternSize.width = 4
+patternSize.height = 11
 
-
-local posesPattern = {}
 
 local min_error = 10000
 local bestHE = nil
   
 local Hg = {}
 local Hc = {} 
+
+
+
+local nImages = imageSaver:getNumberOfImages()
+for i = 1,nImages do
+  local img, pose = imageSaver:loadImage(i)
+  local found, pose_4x4 = xamla3d.calibration.getPoseFromTarget (img["WEBCAM"], intrinsics, distortion, patternSize, circlesDistance)
+  if found then     
+    table.insert(Hg, pose.MoveitPose.full)
+    table.insert(Hc, pose_4x4)
+  end
+end
+
 
  for i = 1, #robotPoses.MoveitPose do
     if robotPoses.MoveitPose[i] ~= nil then    
@@ -72,7 +83,7 @@ local HE, error = calib.handEye.calibrateViaCrossValidation(Hg, Hc, 20, 1000)
 print("Max error: " ..torch.max(torch.abs(error)))
 print("Mean:      " ..torch.mean(torch.abs(error)))
 print("Variance:  " ..torch.var(torch.abs(error)))
-printMatrixAsTorchTensor(HE)
+xamla3d.utils.printMatrixAsTorchTensor(HE)
 
 
 
