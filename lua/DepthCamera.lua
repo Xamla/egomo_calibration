@@ -49,6 +49,41 @@ function DepthCamera:getCalibrationDataAsTable()
 end
 
 
+function DepthCamera:toWorldCoordinates(robot_pose, point_3d)
+  return (robot_pose * self.heye * point_3d:t()):t()  
+end
+
+
+---
+-- @return x,y,3 
+ function DepthCamera:getPointCloud(depth_img_orig)
+  local depth_img = (self.z_scaling * depth_img_orig) + self.z_offset  
+
+  local camIntrinsicsIRinverse = torch.inverse(self.intrinsic)
+  local xResolution = self.width
+  local yResolution = self.height
+
+  local z=torch.FloatTensor(yResolution, xResolution, 3)
+  z[{{}, {}, 3}]=1
+  z[{{}, {}, 1}]=torch.linspace(0.5, xResolution-0.5, xResolution):view(1,xResolution,1):expand(yResolution, xResolution,1)
+  z[{{}, {}, 2}]=torch.linspace(0.5, yResolution-0.5, yResolution):view(yResolution,1,1):expand(yResolution, xResolution,1)
+
+
+  local result= z:view(xResolution*yResolution, 3) * camIntrinsicsIRinverse:t()
+  --result=result:t():clone()
+
+  local mask = result[{{}, 3}]:le(0):view(result:size(1),1):expand(result:size())
+  --result[mask]=0/0
+
+  local depthExpanded=depth_img:view(result:size(1),1):expand(result:size())
+  result:cmul(depthExpanded)
+
+  local newCloud = torch.FloatTensor(yResolution, xResolution, 3)  
+  newCloud[{{}, {}, {1,3}}] = result:view(yResolution,  xResolution, 3)
+
+  return newCloud
+  
+end
 
 function DepthCamera:setZCalibration(offset, scaling)
   self.z_offset = offset
