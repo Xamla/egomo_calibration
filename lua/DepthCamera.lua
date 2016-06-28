@@ -15,8 +15,8 @@ local DepthCamera = torch.class('egomo_calibration.DepthCamera', 'egomo_calibrat
 -- @param height image height
 -- @param z_offset offset in mm added to each z value
 -- @param z_scaling each z value is scaled with this value
-function DepthCamera:__init(intrinsic, distortion, orientation, width, height, z_offset, z_scaling)
-  calib.Camera.__init(self, intrinsic, distortion, orientation, width, height)
+function DepthCamera:__init(intrinsic, distortion, heye, width, height, z_offset, z_scaling)
+  calib.Camera.__init(self, intrinsic, distortion, heye, width, height)
   self.z_offset = z_offset or 0
   self.z_scaling = z_scaling or 1
 end
@@ -36,7 +36,7 @@ end
 ---
 -- Returns the internal parameter of this camera as table
 -- @return table - with fields intrinsic, distortion, width and height, z-offset and z-scaling
-function DepthCamera:getCalibrationDataAsTable()
+function DepthCamera:getCalibrationDataAsTable() 
   local data = {}
   data.intrinsic = self.intrinsic
   data.distortion = self.distortion
@@ -44,9 +44,16 @@ function DepthCamera:getCalibrationDataAsTable()
   data.height = self.height  
   data.z_offset = self.z_offset
   data.z_scaling = self.z_scaling
+  data.heye = self.heye  
   return data
 end
 
+
+
+function DepthCamera:setZCalibration(offset, scaling)
+  self.z_offset = offset
+  self.z_scaling = scaling  
+end
 
 ---
 -- Initializes the depth camera parameters given a table containing the parameters
@@ -55,7 +62,16 @@ function DepthCamera:initializeFromCalibrationDataTable(calib_data)
   self.intrinsic = calib_data.intrinsic
   self.distortion = calib_data.distortion
   self.width = calib_data.width
-  self.height = calib_data.height  
-  self.z_offset = calib_data.z_offset
-  self.z_scaling = calib_data.z_scaling
+  self.height = calib_data.height    
+  self.heye = calib_data.heye    
+  
+  if calib_data.z_offset ~= nil then
+    self.z_offset = calib_data.z_offset
+    self.z_scaling = calib_data.z_scaling
+  else
+    self.z_offset = 0
+    self.z_scaling = 1
+  end
+  
+  
 end

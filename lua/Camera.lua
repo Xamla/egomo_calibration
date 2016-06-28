@@ -14,12 +14,13 @@ local Camera = torch.class('egomo_calibration.Camera', calib)
 -- @param orientation 4x4 DoubleTensor - orientation of camera in space that rotates a point in space to camera coordinate system
 -- @param width image width
 -- @param height image height
-function Camera:__init(intrinsic, distortion, orientation, width, height)
+function Camera:__init(intrinsic, distortion, heye, width, height)
   self.intrinsic = intrinsic or torch.eye(3,3)
   self.distortion = distortion or torch.zeros(5,1)
-  self.orientation = orientation or torch.eye(4,4)
+  self.heye = heye or torch.eye(4,4)
   self.width = width or 0
   self.height = height or 0
+  self.grab_function = nil  
 end
 
 
@@ -30,16 +31,42 @@ function Camera:__toString()
   print("Distortion:")
   print(self.distortion)
   print("Orientation:")
-  print(self.orientation)
+  print(self.heye)
 end
 
+
+function Camera:setGrabFunction(function_handle, instance)
+  self.grab_function = {}
+  self.grab_function.handle = function_handle
+  self.grab_function.instance = instance
+end
+
+
+function Camera:grab()
+  if self.grab_function ~= nil then
+    return self.grab_function.handle(self.grab_function.instance)
+  else
+    error("Grab function in camera is nil")
+    return nil
+  end  
+end
 
 --- Projection
 -- Projects a point from world coordinates into camera (no check if point is in image!)
 -- @param point 3x1 DoubleTensor - point in space
 -- @return point 2x1 DoubleTensor - point in image coordinates
-function Camera:projectPoint(point)  
-  return xamla3d.projectPoint(self.intrinsic, self.orientation, point)
+function Camera:projectPoint(point, robot_pose)  
+  return xamla3d.projectPoint(self.intrinsic, torch.inverse(robot_pose * self.heye), point)
+end
+
+
+function Camera:getDistortion()
+  return self.distortion
+end
+
+
+function Camera:setDistortion(distortion)
+  self.distortion = distortion:clone()
 end
 
 
@@ -77,16 +104,16 @@ end
 --- Sets the orientation of the camera 
 -- Sets the orientation of the camera
 -- @param orientation - 4x4 homogenous matrix [R|t] that rotates a point in world coordinates in camera space 
-function Camera:setOrientation(orientation)
-  self.orientation = orientation:clone()
+function Camera:setHandEye(hand_eye)
+  self.heye = hand_eye:clone()
 end
 
 
 ---
 -- Returns camera orientation as 4x4 DoubleTensor
 -- @return camera orientation as 4x4 DoubleTensor (homogenous matrix)
-function Camera:getOrientation()
-  return self.orientation 
+function Camera:getHandEye()
+  return self.heye 
 end
 
 
@@ -120,6 +147,7 @@ function Camera:getCalibrationDataAsTable()
   data.distortion = self.distortion
   data.width = self.width
   data.height = self.height  
+  data.heye = self.heye
   return data
 end
 
@@ -132,4 +160,5 @@ function Camera:initializeFromCalibrationDataTable(calib_data)
   self.distortion = calib_data.distortion
   self.width = calib_data.width
   self.height = calib_data.height  
+  self.heye = calib_data.heye
 end

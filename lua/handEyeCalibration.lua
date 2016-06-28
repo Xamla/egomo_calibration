@@ -97,7 +97,7 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
     
     print("maxTAlignment: " ..torch.max(resAlignOpt) .." MaxRAlignemnt:" ..torch.max(res_angle))
 
-    if (torch.max(res_angle) < 0.03) then
+    if (torch.max(res_angle) < 0.05) then
       local HgVal = {}
       local HcVal = {}
       

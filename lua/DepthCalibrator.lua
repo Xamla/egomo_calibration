@@ -130,6 +130,6 @@ function DepthCalibrator:doCalibration()
     
   end
   
-  
+  return a,b
   
 end
