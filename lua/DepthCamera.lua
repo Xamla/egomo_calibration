@@ -28,7 +28,7 @@ function DepthCamera:__toString()
   print("Distortion:")
   print(self.distortion)
   print("Orientation:")
-  print(self.orientation)  
+  print(self.heye)  
   print(string.format("Z-Offset: %f Z-Scaling: %f", self.z_offset, self.z_scaling))
 end
 
@@ -59,7 +59,7 @@ end
  function DepthCamera:getPointCloud(depth_img_orig)
   local depth_img = (self.z_scaling * depth_img_orig) + self.z_offset  
 
-  local camIntrinsicsIRinverse = torch.inverse(self.intrinsic)
+  local camIntrinsicsIRinverse = torch.inverse(self.intrinsic:type('torch.FloatTensor'))
   local xResolution = self.width
   local yResolution = self.height
 
@@ -67,7 +67,6 @@ end
   z[{{}, {}, 3}]=1
   z[{{}, {}, 1}]=torch.linspace(0.5, xResolution-0.5, xResolution):view(1,xResolution,1):expand(yResolution, xResolution,1)
   z[{{}, {}, 2}]=torch.linspace(0.5, yResolution-0.5, yResolution):view(yResolution,1,1):expand(yResolution, xResolution,1)
-
 
   local result= z:view(xResolution*yResolution, 3) * camIntrinsicsIRinverse:t()
   --result=result:t():clone()

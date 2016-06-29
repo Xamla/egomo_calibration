@@ -43,6 +43,7 @@ function ImageSaver:__init(path, filename)
   self.img_data = {}
   self.img_data.filename = {}
   self.img_data.poses = {}
+  self.img_data.additional = {}
   self.cnt = 1
   self.curr_image = 1
 
@@ -94,6 +95,14 @@ function ImageSaver:getNumberOfImages()
   return self.cnt
 end
 
+
+function ImageSaver:getAdditionalInformation(key)
+  return self.img_data.additional[key]
+end
+
+function ImageSaver:addAdditionalInformation(key, value)
+  self.img_data.additional[key] = value
+end
 
 function ImageSaver:loadImage(cnt)
   if cnt < 1 or cnt > self.cnt then
@@ -160,9 +169,6 @@ function ImageSaver:addCorrespondingImages(images,  pose_info)
       local p = path.join(self.path, fn)
       torch.save(p, img)
     end
-
-
-
 
     if self.img_data.filename[prefix] == nil then
       self.img_data.filename[prefix] = {}

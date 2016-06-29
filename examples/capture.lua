@@ -183,7 +183,7 @@ local function main()
   local capture = calib.Capture(output_directory_path, pictures_per_position, velocity_scaling)
 
   capture:addGrabFunctions("DEPTHCAM_NO_SPECKLE", depthcam.GrabIRNoSpeckleViaROS, depthcam)
-
+  capture:addGrabFunctions("WEBCAM", webcam.GrabGrayscaleImgROS, webcam)
 
   capture.imwidth = 640
   capture.imheight = 480
@@ -198,14 +198,11 @@ local function main()
   capture.distortion = torch.zeros(5,1)--distortion
 
 
-  capture:addGrabFunctions("DEPTH", depthcam.GrabDepthImageViaROS, depthcam)
-  doCaptureZCalib(capture, "DEPTH", "DEPTHCAM_NO_SPECKLE", output_directory_path, pattern, egomo.side_cam_depth_hand_eye)
+  --capture:addGrabFunctions("DEPTH", depthcam.GrabDepthImageViaROS, depthcam)
+  --doCaptureZCalib(capture, "DEPTH", "DEPTHCAM_NO_SPECKLE", output_directory_path, pattern, egomo.side_cam_depth_hand_eye)
 
 
-  capture:removeGrabFunction("DEPTH")
-  capture:addGrabFunctions("WEBCAM", webcam.GrabGrayscaleImgROS, webcam)
 
-  os.exit()
 
   capture.imwidth = 960
   capture.imheight = 720
