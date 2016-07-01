@@ -57,7 +57,7 @@ end
 ---
 -- @return x,y,3 
  function DepthCamera:getPointCloud(depth_img_orig)
-  local depth_img = (self.z_scaling * depth_img_orig) + self.z_offset  
+  local depth_img = (depth_img_orig * self.z_scaling) + self.z_offset  
 
   local camIntrinsicsIRinverse = torch.inverse(self.intrinsic:type('torch.FloatTensor'))
   local xResolution = self.width

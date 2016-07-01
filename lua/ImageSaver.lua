@@ -141,16 +141,25 @@ function ImageSaver:getImageSize(cam_name)
 end
 
 
+function ImageSaver:updateImage(index, images, pose_info)
+
+end
+
 --- poses - table with "NameOfPose" = Data
 -- @param images table of images. Key is an identifier like IR, RGB DEPTH
 -- @param pose_info table of poses (poses.MoveIt = 4x4 Tensor, poses.Joints = table)
-function ImageSaver:addCorrespondingImages(images,  pose_info)
+-- @param index [optional] if this is set, then the existing information at index is overwritten (Use for update information)
+function ImageSaver:addCorrespondingImages(images,  pose_info, index)
   if images == nil then
     return false
   end
 
   assert(type(images) == "table")
 
+  if index == nil then
+    index = self.cnt
+    self.cnt = self.cnt + 1
+  end
 
   for k,v in pairs(images) do
     local img = v
@@ -162,10 +171,10 @@ function ImageSaver:addCorrespondingImages(images,  pose_info)
     end
 
     if v:type() == "torch.ByteTensor" then
-      fn = string.format("%s_%06d.png", prefix, self.cnt)
+      fn = string.format("%s_%06d.png", prefix, index)
       writeImage(self, img, fn)
     else
-      fn = string.format("%s_%06d.t7", prefix, self.cnt)
+      fn = string.format("%s_%06d.t7", prefix, index)
       local p = path.join(self.path, fn)
       torch.save(p, img)
     end
@@ -174,17 +183,15 @@ function ImageSaver:addCorrespondingImages(images,  pose_info)
       self.img_data.filename[prefix] = {}
     end
 
-    self.img_data.filename[prefix][self.cnt] = fn
+    self.img_data.filename[prefix][index] = fn
 
     for k,v in pairs(pose_info) do
       if self.img_data.poses[k] == nil then
          self.img_data.poses[k] = {}
       end
-      self.img_data.poses[k][self.cnt] = v
+      self.img_data.poses[k][index] = v
     end
-  end
-
-  self.cnt = self.cnt + 1
+  end  
 
   torch.save(path.join(self.path, self.filename), self.img_data)
 
