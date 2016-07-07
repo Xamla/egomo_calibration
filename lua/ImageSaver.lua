@@ -97,6 +97,11 @@ end
 
 
 function ImageSaver:getAdditionalInformation(key)
+  if self.img_data.additional == nil then
+     print("ImageSaver:getAdditionalInformation -- Old data format, no additional data available.")
+     return nil
+  end
+
   return self.img_data.additional[key]
 end
 
@@ -191,7 +196,7 @@ function ImageSaver:addCorrespondingImages(images,  pose_info, index)
       end
       self.img_data.poses[k][index] = v
     end
-  end  
+  end
 
   torch.save(path.join(self.path, self.filename), self.img_data)
 
@@ -242,7 +247,3 @@ function ImageSaverGroup:getNextImage()
    self.current_image = self.current_image + 1
    return self:loadImage(self.current_image-1)
 end
-
-
-
-
