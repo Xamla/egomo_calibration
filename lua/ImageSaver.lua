@@ -63,7 +63,11 @@ function ImageSaver:load()
     for cnt = 1, #v do
       local fn = v[cnt]
       if fn ~= nil then
-        v[cnt] = path.join(self.path, fn)
+        local pos = string.find(fn, "/")
+        if pos ~= nil then
+          fn = fn:sub(pos+1)
+        end
+        v[cnt] = fn
       end
     end
   end
@@ -128,7 +132,7 @@ function ImageSaver:loadImage(cnt)
       if string.find(fn, ".png") then
         img = cv.imread{fn}
       else
-        img = torch.load(fn)
+        img = torch.load(path.join(self.path, fn))
       end
       images[k] = img
     end
