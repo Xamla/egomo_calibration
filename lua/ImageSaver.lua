@@ -130,7 +130,7 @@ function ImageSaver:loadImage(cnt)
     if fn ~= nil then
       local img = nil
       if string.find(fn, ".png") then
-        img = cv.imread{fn}
+        img = cv.imread{path.join(self.path, fn)}
       else
         img = torch.load(path.join(self.path, fn))
       end
