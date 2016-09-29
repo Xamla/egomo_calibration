@@ -96,8 +96,18 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
     local HE, resAlignOpt, res_angle = xamlaHandEye.calibrate(HgSamples,HcSamples)
     
     print("maxTAlignment: " ..torch.max(resAlignOpt) .." MaxRAlignemnt:" ..torch.max(res_angle))
+--    print("medianTAlignment: ")
+--    print(torch.median(torch.squeeze(resAlignOpt)))
+--    print(" medianRAlignemnt: ")
 
-    if (torch.max(res_angle) < 0.05) then
+--    local rMedian, index = torch.max(torch.squeeze(res_angle))
+--    print(" medianRAlignemnt: "..torch.squeeze(rMedian))
+
+--    local rMax = torch.max(torch.squeeze(res_angle))
+--    print(" medianRAlignemnt: "..rMax)
+
+
+    if (torch.max(res_angle) < 0.8) then
       local HgVal = {}
       local HcVal = {}
       
@@ -121,6 +131,10 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
 
 end
 
+
+-- Hg: list of roboter poses
+-- Hc: list of camera/pattern poses (from solvePnp for example)
+-- Algorithm based on paper Tsai and Lenz, 1987
 function xamlaHandEye.calibrate(Hg, Hc) 
 
   assert(#Hg == #Hc)
@@ -140,31 +154,33 @@ function xamlaHandEye.calibrate(Hg, Hc)
   
   local cnt = 0  
   
+  -- calculate the difference between all pairs of two robot and two camera poses
   for i = 1,#Hg do
     for j = i+1,#Hg do
     
-    local dHg = torch.inverse(Hg[j]) * Hg[i]
-    local dHc = Hc[j] * torch.inverse(Hc[i])
-     
-
+    local dHg = torch.inverse(Hg[j]) * Hg[i]  -- pose difference between two robot poses
+    local dHc = Hc[j] * torch.inverse(Hc[i])  -- pose difference between the two corresponding camera poses
      
      table.insert(Hg_ij, dHg)
      table.insert(Hc_ij, dHc)
      
      
-     local Pg_ij = xamlaHandEye.modRodrigues(dHg[{{1,3},{1,3}}])
-     local Pc_ij = xamlaHandEye.modRodrigues(dHc[{{1,3},{1,3}}])
+     local Pg_ij = xamlaHandEye.modRodrigues(dHg[{{1,3},{1,3}}])  -- convert rotation component to a kind of
+     local Pc_ij = xamlaHandEye.modRodrigues(dHc[{{1,3},{1,3}}])  -- axis angle representation
      
      Pg_ij = Pg_ij:clone():view(3,1)
      Pc_ij = Pc_ij:clone():view(3,1)
-                
+     
+     -- for explanation of the next two lines, see paper ;-)
+     -- (creats a set of linear equations)
      coeff[{{cnt*3+1,cnt*3 + 3 }, {}}] = xamla3d.getSkewSymmetricMatrix(Pg_ij + Pc_ij)
      const[{{cnt*3+1, cnt*3 + 3},  1}] = Pc_ij:view(3,1) - Pg_ij:view(3,1)
      cnt = cnt+1
      
     end
   end  
-    
+
+  -- solve the equations
   local AtA =  torch.DoubleTensor(3,3):zero()
   local Atb = coeff:t() * const
   AtA = coeff:t() * coeff
@@ -173,19 +189,23 @@ function xamlaHandEye.calibrate(Hg, Hc)
   
   local res_angle = coeff * Pcg_p - const
  
-   
+  -- calculate the rotation component
   local Pcg =  (Pcg_p * 2) / math.sqrt(1+torch.norm(Pcg_p)^2);
 
   local Rcg = xamlaHandEye.invModRodrigues(Pcg);
 
  coeff = torch.DoubleTensor(3*nEquations, 3):zero()
  const = torch.DoubleTensor(3*nEquations, 1):zero()
- 
+
+ -- --- process the translation component ---
+
+ -- create a set of equations
  for i = 1,#Hg_ij do
   coeff[{{(i-1)*3+1,(i-1)*3 + 3 }, {}}] = Hg_ij[i][{{1,3},{1,3}}] - torch.eye(3,3)
   const[{{(i-1)*3+1,(i-1)*3 + 3},  1}] = Rcg * Hc_ij[i][{{1,3},{4}}] - Hg_ij[i][{{1,3},{4}}]
  end
  
+ -- solve the set of equations
   local AtA =  torch.DoubleTensor(3,3):zero()
   local Atb = coeff:t() * const
   AtA = coeff:t() * coeff
@@ -195,6 +215,7 @@ function xamlaHandEye.calibrate(Hg, Hc)
   --print(torch.min(torch.abs(res)))
   --print(torch.max(torch.abs(res)))
   
+  -- combine rotation and translation component to final result
   local H = torch.eye(4,4)
   H[{{1,3},{1,3}}] = Rcg
   H[{{1,3},4}] = Tcg

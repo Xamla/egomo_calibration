@@ -1,6 +1,11 @@
 local lfs = require 'lfs'
 local cv = require 'cv'
 require 'cv.highgui'
+require 'cv.videoio'
+require 'cv.imgproc'
+require 'cv.calib3d'
+require 'cv.imgcodecs'
+require 'cv.features2d'
 
 local xamla3d = {}
 xamla3d.utils = {}
