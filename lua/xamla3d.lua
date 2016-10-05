@@ -331,11 +331,17 @@ function xamla3d.calibration.calcPatternPointPositions (pointsX, pointsY, pointS
 end
 
 
-function xamla3d.calibration.getPoseFromTarget (image, intrinsics, distCoeffs, patternSize, distCircles)
+function xamla3d.calibration.getPoseFromTarget (image, intrinsics, distCoeffs, patternSize, distCircles, cvFlags)
 
-  local points3d = xamla3d.calibration.calcPatternPointPositions(patternSize.width,patternSize.height, distCircles) 
-  local found, pattern = xamla3d.calibration.findPattern(image, cv.CALIB_CB_ASYMMETRIC_GRID ,patternSize)
-  
+  local points3d = xamla3d.calibration.calcPatternPointPositions(patternSize.width,patternSize.height, distCircles)
+  local found
+  local pattern
+  if cvFlags then
+     found, pattern = xamla3d.calibration.findPattern(image, cv.CALIB_CB_ASYMMETRIC_GRID+cvFlags, patternSize)
+  else
+     found, pattern = xamla3d.calibration.findPattern(image, cv.CALIB_CB_ASYMMETRIC_GRID, patternSize)
+  end
+
   if found then
     local poseFound, poseCamRotVector, poseCamTrans=cv.solvePnP{objectPoints=points3d, imagePoints=pattern, cameraMatrix=intrinsics, distCoeffs=distCoeffs}  
     local poseCamRotMatrix = xamla3d.calibration.RotVectorToRotMatrix(poseCamRotVector)
@@ -369,6 +375,7 @@ function xamla3d.calibration.findPattern (image, patternType, patternSize)
     pointFindSuccess, centers=cv.findCirclesGrid{image=image, patternSize=patternSize, flags=patternType}
     if(not pointFindSuccess) then
       image:apply(function(x) local val=x*1.2+10 if(val>255) then return 255 else return val end end)
+      print("Increasing imge brightness ...")   
       --cv.imshow{"Tmp", image}
       --cv.waitKey{-1}
     else
