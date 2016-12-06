@@ -43,7 +43,8 @@ local function forward_kinematic(jointState, robotModel, join_dir)
   local poses = {}
 
   local T = torch.eye(4)
-  for i=1,6 do
+  --for i=1,6 do
+  for i=1,5 do    -- ##
     local t = dh(join_dir[i] * jointState[i] - robotModel[1][i], robotModel[2][i], robotModel[3][i], robotModel[4][i])
     table.insert(poses, t)
     T = T * t
@@ -139,7 +140,7 @@ function Calibration:__init(pattern, im_width, im_height, hand_eye, robot_model)
 end
 
 
-function Calibration:addImage(image, robotPose, jointState, patternId)
+function Calibration:addImage(image, robotPose, jointState, patternId, points)
   if image == nil or robotPose == nil or jointState == nil then
     error('Invalid arguments')
   end
@@ -155,10 +156,13 @@ function Calibration:addImage(image, robotPose, jointState, patternId)
     patternID = pattern,
   }
 
-  local patternGeom = { height=self.pattern.height, width=self.pattern.width }    -- size of the pattern: x, y
-  local found, points = xamla3d.calibration.findPattern(image:clone(), cv.CALIB_CB_ASYMMETRIC_GRID, patternGeom)
-  if not found then
-    return false
+  if not points then
+    local patternGeom = { height=self.pattern.height, width=self.pattern.width }    -- size of the pattern: x, y
+    local found
+    found, points = xamla3d.calibration.findPattern(image:clone(), cv.CALIB_CB_ASYMMETRIC_GRID, patternGeom)
+    if not found then
+      return false
+    end
   end
 
   image_item.patternPoints2d = points:clone()
@@ -245,16 +249,16 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
   local observations = {}
   local point3d = torch.DoubleTensor(nPts,3):zero()
 
-  for i = 1, #indices do
+  for i=1,#indices do
     local imageEntry = self.images[indices[i]]
 
-    table.insert(poses, imageEntry.robotPose.full)
+    table.insert(poses, imageEntry.robotPose)
     local points = imageEntry.patternPoints2d
 
-    for m = 1,points:size()[1] do
+    for m=1,points:size()[1] do
       local meas = torch.DoubleTensor(4,1)
-      meas[1] = #poses -1 + jointStatesOffset --cameraID (zero - based for c++)
-      meas[2] = m -1 + point3dOffset--pointID (make it zero based for c++)
+      meas[1] = #poses-1 + jointStatesOffset   -- cameraID (zero based for c++)
+      meas[2] = m-1 + point3dOffset            -- pointID (zero based for c++)
       meas[3] = points[m][1][1]
       meas[4] = points[m][1][2]
       table.insert(observations, meas)
@@ -275,7 +279,7 @@ function Calibration:prepareBAStructureWithImageIDs(indices, measurementsE, join
   for i = 1, #indices do
     nCnt = nCnt + 1
     jointStates[{nCnt, {1,6}}] = self.images[indices[i]].jointStates:view(1,6):clone()
-    local robotPoseWithJointStates = forward_kinematic(self.images[indices[i]].jointStates,robotModel,robotJointDir)
+    local robotPoseWithJointStates = forward_kinematic(self.images[indices[i]].jointStates, robotModel, robotJointDir)
     local c = intrinsics * torch.inverse(robotPoseWithJointStates * handEye)[{{1,3},{}}]
     table.insert(P, c)
   end
@@ -383,7 +387,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_d
       false,     -- optimize_robot_model_a
       false,     -- optimize_robot_model_alpha
-      true       -- optimize_joint_states
+      false      -- optimize_joint_states       -- ## was true ...
     )
 
     print("Error after optimizing HandEye:                 "..init_error)

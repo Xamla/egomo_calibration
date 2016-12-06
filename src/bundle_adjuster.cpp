@@ -118,7 +118,7 @@ struct UR5Kinematic {
     result(2,0) = sin(alpha) * sin(theta);
     result(2,1) = -cos(theta) * sin(alpha);
     result(2,2) = cos(alpha);
-    result(2,3) =  -d *cos(alpha);
+    result(2,3) = -d * cos(alpha);
 
     result(3,0) = T(0);
     result(3,1) = T(0);
@@ -143,7 +143,8 @@ struct UR5Kinematic {
 
     T tmp_storage[16];
     Mat44 tmp(tmp_storage);
-    for (int i=5; i>=0; --i) {
+    //for (int i=5; i>=0; --i) {  // ##
+    for (int i=4; i>=0; --i) {
       T t_storage[16];
       Mat44 t(t_storage);
       dh_inverse(t, joint_dir[i] * joints[i] + robot_model_theta[i], robot_model_d[i], robot_model_a[i], robot_model_alpha[i]);
@@ -453,6 +454,7 @@ public:
     bool optimize_robot_model_alpha,
     bool optimize_joint_states
   ) {
+
     if (!optimize_hand_eye) {
       problem.SetParameterBlockConstant(hand_eye_data);
     }
@@ -590,7 +592,8 @@ private:
   long *jointpoint_indices_data;
 
   void prepareProblem() {
-     // Create residuals for each observation in the bundle adjustment problem. The
+
+    // Create residuals for each observation in the bundle adjustment problem. The
     // parameters for cameras and points are added automatically.
 
     //ceres::LossFunction* loss_function(new ceres::HuberLoss(1.0));
@@ -618,7 +621,7 @@ private:
       long joint_index = jointpoint_indices_data[2 * i + 0];
       long point_index = jointpoint_indices_data[2 * i + 1];
 
-      //std::cout << "joint_index: " << joint_index << "; point_index: " << point_index << std::endl;
+      // std::cout << "joint_index: " << joint_index << "; point_index: " << point_index << std::endl;
 
       double *joint_state_for_observation = joint_states_data + 6 * joint_index;
       double *point_for_observation = points_data + 3 * point_index;
