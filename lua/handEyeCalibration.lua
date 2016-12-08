@@ -85,15 +85,14 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
   end
   
     local idx = torch.randperm(#Hg)
-    local HgSamples = {}
-    local HcSamples = {} 
+    local HgSamples,HcSamples = {},{}
        
     for i = 1, nPoses do
       table.insert(HgSamples, Hg[idx[i]])
       table.insert(HcSamples, Hc[idx[i]])
     end
         
-    local HE, resAlignOpt, res_angle = xamlaHandEye.calibrate(HgSamples,HcSamples)
+    local HE, resAlignOpt, res_angle = xamlaHandEye.calibrate(HgSamples, HcSamples)
     
     print("maxTAlignment: " ..torch.max(resAlignOpt) .." MaxRAlignemnt:" ..torch.max(res_angle))
 --    print("medianTAlignment: ")
@@ -106,8 +105,7 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
 --    local rMax = torch.max(torch.squeeze(res_angle))
 --    print(" medianRAlignemnt: "..rMax)
 
-
-    if (torch.max(res_angle) < 0.8) then
+    if torch.max(res_angle) < 0.8 then
       local HgVal = {}
       local HcVal = {}
       
@@ -116,11 +114,13 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
         table.insert(HcVal, Hc[idx[i]])
       end
       
-      local error, res = xamlaHandEye.getAlignError(HgVal,HcVal,HE)        
-          
-      if (torch.mean(res) < minError) then
-        minError = torch.mean(res)
+      local error, res = xamlaHandEye.getAlignError(HgVal, HcVal, HE)
+      local resMean = math.abs(torch.mean(res))
+      if resMean < minError then
+        minError = resMean
         bestHESolution = HE:clone()
+        print(string.format('new candidate (res: %f):', resMean))
+        print(bestHESolution)
         alignmentErrorTest = res
         alignmentError = resAlignOpt
       end
@@ -128,7 +128,6 @@ function xamlaHandEye.calibrateViaCrossValidation(Hg, Hc, nPoses, nTrials)
   end
 
   return bestHESolution, alignmentErrorTest, alignmentError
-
 end
 
 

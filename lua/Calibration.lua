@@ -45,7 +45,7 @@ local function forward_kinematic(jointState, robotModel, join_dir)
   local T = torch.eye(4)
   --for i=1,6 do
   for i=1,5 do    -- ##
-    local t = dh(join_dir[i] * jointState[i] - robotModel[1][i], robotModel[2][i], robotModel[3][i], robotModel[4][i])
+    local t = dh(join_dir[i] * jointState[i] + robotModel[1][i], robotModel[2][i], robotModel[3][i], robotModel[4][i])
     table.insert(poses, t)
     T = T * t
   end
@@ -141,7 +141,7 @@ end
 
 
 function Calibration:addImage(image, robotPose, jointState, patternId, points)
-  if image == nil or robotPose == nil or jointState == nil then
+  if (image == nil and points == nil) or robotPose == nil or jointState == nil then
     error('Invalid arguments')
   end
 
@@ -372,8 +372,9 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
 
     local optimization_path = ""
 
+
     local jointStatesOptimized = jointStates:clone()
-    local init_error = calib.optimizeDH(intrinsics,
+    local training_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
       jointStatesOptimized,
@@ -390,9 +391,28 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false      -- optimize_joint_states       -- ## was true ...
     )
 
-    print("Error after optimizing HandEye:                 "..init_error)
+    print("Error after optimizing HandEye:                 "..training_error)
 
-    local init_error = calib.optimizeDH(intrinsics,
+
+    local tmp = {}
+    tmp.validationError = validation_error
+    tmp.trainingError = training_error
+    tmp.calibData  = calibData
+    tmp.trainingIndices = idxTraining
+    table.insert(validationErrors, tmp)
+    tmp.optimizationPath = optimization_path
+
+    print('Original hand-eye:')
+    print(self.handEye)
+
+    print('Optimized hand-eye:')
+    local handEye = torch.inverse(handEyeInv)
+    print(handEye)
+
+  end   -- ##
+
+
+--[[    local init_error = calib.optimizeDH(intrinsics,
       distCoeffs,
       handEyeInv,
       jointStates,
@@ -448,7 +468,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     )
 
     optimization_path  = optimization_path .. "(points + d + a)"
-
+]]
  --[[
       local training_error = calib.optimizeDH(intrinsics,
                  distCoeffs,
@@ -468,7 +488,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
                  )
     optimization_path  = optimization_path .. "(handEye + points)"
 ]]
-
+--[[
     print("Error after optim of theta and alpha (Training):    " .. training_error)
 
     local calibData = {}
@@ -510,7 +530,7 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
     table.insert(validationErrors, tmp)
     tmp.optimizationPath = optimization_path
   end
-
+]]
   table.sort(validationErrors, function(a,b) return a.validationError < b.validationError end)
 
   local best = validationErrors[1]
@@ -591,6 +611,37 @@ function Calibration:runBAMultiplePatterns()
 
   print("Final error: " ..final_error)
 
+  
+
+
+  local handEye_inv = torch.inverse(self.handEye)
+  local final_error = calib.optimizeDH(self.intrinsics,
+    self.distCoeffs,
+    handEye_inv,
+    jointStates,
+    self.robotModel.dh,
+    points3d,
+    observations,
+    jointPointIndices,
+    true,     -- optimize_hand_eye
+    true,      -- optimize_points
+    false,      -- optimize_robot_model_theta
+    false,     -- optimize_robot_model_d
+    false,     -- optimize_robot_model_a
+    false,      -- optimize_robot_model_alpha
+    false      -- optimize_joint_states
+  )
+
+  print("Last error: "..final_error)
+
+  print("HandEye before:")
+  print(self.handEye)
+
+  print("HandEye after:")
+  self.handEye = torch.inverse(handEye_inv)
+  print(self.handEye)
+
+
   local v = pcl.PCLVisualizer('demo', true)
   v:addCoordinateSystem(0.5)
   ptsPcl = pcl.rand(points3d:size()[1])
@@ -608,32 +659,6 @@ function Calibration:runBAMultiplePatterns()
   v:setPointCloudRenderingProperties3(pcl.RenderingProperties.PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, 'ref2')
   v:setPointCloudRenderingProperties1(pcl.RenderingProperties.PCL_VISUALIZER_POINT_SIZE, 3, 'ref2');
 
-  print("HandEye before:")
-  print(self.handEye)
-
-  local handEye_inv = torch.inverse(self.handEye)
-  local final_error = calib.optimizeDH(self.intrinsics,
-    self.distCoeffs,
-    handEye_inv,
-    jointStates,
-    self.robotModel.dh,
-    points3d,
-    observations,
-    jointPointIndices,
-    false,     -- optimize_hand_eye
-    true,      -- optimize_points
-    true,      -- optimize_robot_model_theta
-    false,     -- optimize_robot_model_d
-    false,     -- optimize_robot_model_a
-    true,      -- optimize_robot_model_alpha
-    false      -- optimize_joint_states
-  )
-
-  print("Last error: "..final_error)
-
-  print("HandEye after:")
-  self.handEye = torch.inverse(handEye_inv)
-  print(self.handEye)
 
   print(final_error)
 

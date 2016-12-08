@@ -94,6 +94,7 @@ link_directories(
 
 add_library(egomo_calibration MODULE ${src})
 
+
 target_link_libraries(egomo_calibration TH ceres ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${GLOG_LIBRARIES} ${Boost_LIBRARIES})
 
 install(TARGETS egomo_calibration LIBRARY DESTINATION ${Torch_INSTALL_LUA_CPATH_SUBDIR})
