@@ -583,17 +583,18 @@ function Calibration:runBAMultiplePatterns()
   ]]
 
   local point3dBefore = points3d:clone()
+  local handEye_inv = torch.inverse(self.handEye)
 
   local final_error = calib.optimizeDH(
     self.intrinsics,
     self.distCoeffs,
-    torch.inverse(self.handEye),
+    handEye_inv,
     jointStates,
     self.robotModel.dh:clone(),
     points3d,
     observations:clone(),
     jointPointIndices,
-    false,     -- optimize_hand_eye
+    false,      -- optimize_hand_eye
     true,      -- optimize_points
     false,     -- optimize_robot_model_theta
     false,     -- optimize_robot_model_d
@@ -606,29 +607,48 @@ function Calibration:runBAMultiplePatterns()
   print(self.intrinsics)
   print("DistCoeffs2")
   print(self.distCoeffs)
-  print("HandEye2")
+  print("HandEye before:")
   print(self.handEye)
+  print('HandEye after:')
+  print(torch.inverse(handEye_inv))
 
   print("Final error: " ..final_error)
 
-  
-
 
   local handEye_inv = torch.inverse(self.handEye)
+
   local final_error = calib.optimizeDH(self.intrinsics,
     self.distCoeffs,
     handEye_inv,
     jointStates,
     self.robotModel.dh,
     points3d,
-    observations,
+    observations:clone(),
     jointPointIndices,
-    true,     -- optimize_hand_eye
-    true,      -- optimize_points
+    false,     -- optimize_hand_eye
+    false,      -- optimize_points
     false,      -- optimize_robot_model_theta
     false,     -- optimize_robot_model_d
     false,     -- optimize_robot_model_a
     false,      -- optimize_robot_model_alpha
+    false      -- optimize_joint_states
+  )
+
+  local final_error = calib.optimizeDH(
+    self.intrinsics,
+    self.distCoeffs,
+    handEye_inv,
+    jointStates,
+    self.robotModel.dh:clone(),
+    points3d,
+    observations:clone(),
+    jointPointIndices,
+    true,      -- optimize_hand_eye
+    false,      -- optimize_points
+    false,     -- optimize_robot_model_theta
+    false,     -- optimize_robot_model_d
+    false,     -- optimize_robot_model_a
+    false,     -- optimize_robot_model_alpha
     false      -- optimize_joint_states
   )
 
@@ -640,6 +660,7 @@ function Calibration:runBAMultiplePatterns()
   print("HandEye after:")
   self.handEye = torch.inverse(handEye_inv)
   print(self.handEye)
+
 
 
   local v = pcl.PCLVisualizer('demo', true)
