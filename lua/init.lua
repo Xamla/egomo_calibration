@@ -27,7 +27,11 @@ function calib.optimizeDH(
   optimize_robot_model_d,
   optimize_robot_model_a,
   optimize_robot_model_alpha,
-  optimize_joint_states)
+  optimize_joint_states,
+  optimize_pp,
+  optimize_focal_length,
+  optimize_distortion
+  )
 
   -- call ceres optimizer
   return optimizeDH(
@@ -45,7 +49,10 @@ function calib.optimizeDH(
     optimize_robot_model_d or false,
     optimize_robot_model_a or false,
     optimize_robot_model_alpha or false,
-    optimize_joint_states or false
+    optimize_joint_states or false,
+    optimize_pp or false,
+    optimize_focal_length or false,
+    optimize_distortion or false
   )
 end
 

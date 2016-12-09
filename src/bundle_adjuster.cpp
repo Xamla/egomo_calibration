@@ -213,11 +213,11 @@ struct SnavelyReprojectionError {
 
     k(robot_model_theta, robot_model_d_, robot_model_a_, robot_model_alpha, joint_state, pose_storage);
 
-    /*
-    std::cout << "robot_model: " << robot_model[0] << " " <<  robot_model[1] << " " <<  robot_model[2] << " " << robot_model[3] << " " <<  robot_model[4] << " " <<  robot_model[5] <<std::endl;
-    std::cout << "joint_state: " << joint_state[0] << " " <<  joint_state[1] << " " <<  joint_state[2] << " " << joint_state[3] << " " <<  joint_state[4] << " " <<  joint_state[5] <<std::endl;
-    std::cout << "robot_translation: " << pose_storage[3] << " " <<  pose_storage[7] << " " <<  pose_storage[11] << std::endl;
-    */
+
+    //std::cout << "robot_model: " << robot_model[0] << " " <<  robot_model[1] << " " <<  robot_model[2] << " " << robot_model[3] << " " <<  robot_model[4] << " " <<  robot_model[5] <<std::endl;
+    //std::cout << "joint_state: " << joint_state[0] << " " <<  joint_state[1] << " " <<  joint_state[2] << " " << joint_state[3] << " " <<  joint_state[4] << " " <<  joint_state[5] <<std::endl;
+    //std::cout << "robot_translation: " << pose_storage[3] << " " <<  pose_storage[7] << " " <<  pose_storage[11] << std::endl;
+
 
     // transform point
 
@@ -249,21 +249,20 @@ struct SnavelyReprojectionError {
     // Compute the center of distortion. The sign change comes from
     // the camera model that Noah Snavely's Bundler assumes, whereby
     // the camera coordinate system has a negative z axis.
-    T xp =   p2[0] / p2[2];
-    T yp =   p2[1] / p2[2];
+    T xp =  p2[0] / p2[2];
+    T yp =  p2[1] / p2[2];
 
     // Apply second and fourth order radial distortion.
     const T& l1 = distortion[0];
     const T& l2 = distortion[1];
     const T& l3 = distortion[2];
     T r2 = xp*xp + yp*yp;
-    T dist = T(1.0) + r2  * (l1 + l2  * r2 + l3*r2*r2);
+    T dist = T(1.0) + r2  * (l1 + l2 * r2 + l3*r2*r2);
 
     // Compute final projected point position.
     // const T& focal = robot[6];
     T predicted_x = (focal[0]  * xp * dist) + pp[0];
     T predicted_y = (focal[0]  * yp * dist) + pp[1];
-
 
     //std::cout << "focal: " << focal[0] << std::endl;
     //exit(-1);
@@ -325,7 +324,6 @@ public:
     distortion_data[0] = THDoubleTensor_get2d(distortion, 0, 0);
     distortion_data[1] = THDoubleTensor_get2d(distortion, 0, 1);
     distortion_data[2] = THDoubleTensor_get2d(distortion, 0, 4);
-
 
     std::cout << "Distortion: " << distortion_data[0] << " " << distortion_data[1] << " " << distortion_data[2] << std::endl;
 
@@ -408,7 +406,7 @@ public:
         THDoubleTensor_get2d(hand_eye, 2, 0), THDoubleTensor_get2d(hand_eye, 2, 1), THDoubleTensor_get2d(hand_eye, 2, 2)
       };
 
-      double rotation_cm[9];
+      double rotation_cm[9] = { 0 };
       rotation_cm[0] = rotation[0];
       rotation_cm[1] = rotation[3];
       rotation_cm[2] = rotation[6];
@@ -419,6 +417,16 @@ public:
       rotation_cm[7] = rotation[5];
       rotation_cm[8] = rotation[8];
 
+      /*std::cout << "handeye rotation:" << std::endl;
+      for (int i=0; i <9; ++i) {
+        printf("%d: %f\n", i, (double)rotation[i]);
+      }
+
+      printf("rotation_cm input:");
+      for (int i=0;i<9;++i) {
+        printf("%d: %f\n", i, rotation_cm[i]);
+      }*/
+
       ceres::RotationMatrixToAngleAxis(rotation_cm, angle_axis);
     }
 
@@ -428,7 +436,30 @@ public:
     hand_eye_data[3] = translation[0];
     hand_eye_data[4] = translation[1];
     hand_eye_data[5] = translation[2];
+    std::cout << "handeye rotAxis: (" << hand_eye_data[0] << ", " << hand_eye_data[1] << ", " << hand_eye_data[2] <<")" << std::endl;
     std::cout << "handeye translation: (" << hand_eye_data[3] << ", " << hand_eye_data[4] << ", " << hand_eye_data[5] <<")" << std::endl;
+
+    /*{
+      double rotation_cm2[9] = {0};
+      ceres::AngleAxisToRotationMatrix(hand_eye_data, rotation_cm2);
+
+      double rotation[9];
+      rotation[0] = rotation_cm2[0];
+      rotation[3] = rotation_cm2[1];
+      rotation[6] = rotation_cm2[2];
+      rotation[1] = rotation_cm2[3];
+      rotation[4] = rotation_cm2[4];
+      rotation[7] = rotation_cm2[5];
+      rotation[2] = rotation_cm2[6];
+      rotation[5] = rotation_cm2[7];
+      rotation[8] = rotation_cm2[8];
+
+      std::cout << "handeye rotation decoded:" << std::endl;
+      for (int i=0; i <9; ++i) {
+        printf("%d: %f\n", i, (double)rotation[i]);
+      }
+
+    }*/
 
     prepareProblem();
   }
@@ -452,7 +483,10 @@ public:
     bool optimize_robot_model_d,
     bool optimize_robot_model_a,
     bool optimize_robot_model_alpha,
-    bool optimize_joint_states
+    bool optimize_joint_states,
+    bool optimize_pp,
+    bool optimize_focal_length,
+    bool optimize_distortion
   ) {
 
     if (!optimize_hand_eye) {
@@ -488,6 +522,18 @@ public:
       }
     }
 
+    if (!optimize_pp) {
+      problem.SetParameterBlockConstant(pp);
+    }
+
+    if (!optimize_focal_length) {
+      problem.SetParameterBlockConstant(focal);
+    }
+
+    if (!optimize_distortion) {
+      problem.SetParameterBlockConstant(distortion_data);
+    }
+
     double *rm = robot_model_data;
     std::cout << "Robot Model (before)" << std::endl;
     for (int i = 0; i < 6; i++) {
@@ -519,11 +565,38 @@ public:
       std::cout<< "Joint "<< i << "(theta, d, a, alpha)" << rm[0+i] << " " << rm[6 + i] << " " << rm[12 + i]  << " " << rm[18 + i] << std::endl;
     }
 
+    if (optimize_focal_length) {
+      THDoubleTensor_set2d(intrinsics_, 0, 0, focal[0]);
+      THDoubleTensor_set2d(intrinsics_, 1, 1, focal[0]);
+    }
+
+    if (optimize_pp) {
+      THDoubleTensor_set2d(intrinsics_, 0, 2, pp[0]);
+      THDoubleTensor_set2d(intrinsics_, 1, 2, pp[1]);
+    }
+
+    if (optimize_distortion) {
+      THDoubleTensor_set2d(distortion_, 0, 0, distortion_data[0]);
+      THDoubleTensor_set2d(distortion_, 0, 1, distortion_data[1]);
+      THDoubleTensor_set2d(distortion_, 0, 4, distortion_data[2]);
+    }
+
     // convert hand-eye rotation back to matrix representations
     if (optimize_hand_eye)
     {
       double rotation_cm[9];
       ceres::AngleAxisToRotationMatrix(hand_eye_data, rotation_cm);
+
+      double rotAxis[3] = {0};
+      ceres::RotationMatrixToAngleAxis(rotation_cm, rotAxis);
+
+      /*printf("return cross check:\n");
+      printf("heyedata: %f; %f; %f;    rotAxis: %f; %f; %f\n", hand_eye_data[0], hand_eye_data[1], hand_eye_data[2], rotAxis[0], rotAxis[1], rotAxis[2]);
+      printf("translation: %f, %f, %f\n", hand_eye_data[3],hand_eye_data[4],hand_eye_data[5]);
+      printf("rotation_cm output:");
+      for (int i=0;i<9;++i) {
+        printf("%d: %f\n", i, rotation_cm[i]);
+      }*/
 
       double rotation[9];
       rotation[0] = rotation_cm[0];
@@ -537,9 +610,9 @@ public:
       rotation[8] = rotation_cm[8];
 
       // rotation part
-      THDoubleTensor_set2d(hand_eye_, 0, 0, rotation[0]); THDoubleTensor_set2d(hand_eye, 0, 1, rotation[1]); THDoubleTensor_set2d(hand_eye, 0, 2, rotation[2]);
-      THDoubleTensor_set2d(hand_eye_, 1, 0, rotation[3]); THDoubleTensor_set2d(hand_eye, 1, 1, rotation[4]); THDoubleTensor_set2d(hand_eye, 1, 2, rotation[5]);
-      THDoubleTensor_set2d(hand_eye_, 2, 0, rotation[6]); THDoubleTensor_set2d(hand_eye, 2, 1, rotation[7]); THDoubleTensor_set2d(hand_eye, 2, 2, rotation[8]);
+      THDoubleTensor_set2d(hand_eye_, 0, 0, rotation[0]); THDoubleTensor_set2d(hand_eye_, 0, 1, rotation[1]); THDoubleTensor_set2d(hand_eye_, 0, 2, rotation[2]);
+      THDoubleTensor_set2d(hand_eye_, 1, 0, rotation[3]); THDoubleTensor_set2d(hand_eye_, 1, 1, rotation[4]); THDoubleTensor_set2d(hand_eye_, 1, 2, rotation[5]);
+      THDoubleTensor_set2d(hand_eye_, 2, 0, rotation[6]); THDoubleTensor_set2d(hand_eye_, 2, 1, rotation[7]); THDoubleTensor_set2d(hand_eye_, 2, 2, rotation[8]);
 
       // translation part
       THDoubleTensor_set2d(hand_eye_, 0, 3, hand_eye_data[3]);
@@ -559,7 +632,8 @@ public:
     return sum / (double(residuals.size()) / 2.0);
   }
 
-private:
+//private:
+public:
   ceres::Problem problem;
 
   THDoubleTensor *intrinsics, *intrinsics_;
@@ -571,7 +645,7 @@ private:
   THDoubleTensor *observations, *observations_;
   THLongTensor *jointpoint_indices, *jointpoint_indices_;
 
-  double focal[1];
+  double focal[2];
   double pp[2];
   double distortion_data[3];
   double hand_eye_data[6];
@@ -641,10 +715,6 @@ private:
         pp
       );
     }
-
-    problem.SetParameterBlockConstant(focal);
-    problem.SetParameterBlockConstant(distortion_data);
-    problem.SetParameterBlockConstant(pp);
   }
 };
 
@@ -678,20 +748,34 @@ CALIBIMP(double, _, optimizeDH)(
   bool optimize_robot_model_d,
   bool optimize_robot_model_a,
   bool optimize_robot_model_alpha,
-  bool optimize_joint_states
+  bool optimize_joint_states,
+  bool optimize_pp,
+  bool optimize_focal_length,
+  bool optimize_distortion
 ) {
 //  google::InitGoogleLogging("/tmp");
-  DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices);
+  double err = 0;
 
-  calib.optimize(
-    optimize_hand_eye,
-    optimize_points,
-    optimize_robot_model_theta,
-    optimize_robot_model_d,
-    optimize_robot_model_a,
-    optimize_robot_model_alpha,
-    optimize_joint_states
-  );
+  {
+    DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices);
+    calib.optimize(
+      optimize_hand_eye,
+      optimize_points,
+      optimize_robot_model_theta,
+      optimize_robot_model_d,
+      optimize_robot_model_a,
+      optimize_robot_model_alpha,
+      optimize_joint_states,
+      optimize_pp,
+      optimize_focal_length,
+      optimize_distortion
+    );
+    err = calib.calcAverageReproductionError();
+  }
 
-  return calib.calcAverageReproductionError();
+  DHCalibration calib2(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices);
+  double crossCheck = calib2.calcAverageReproductionError();
+  printf("err: %f, crossCheck: %f\n", err, crossCheck);
+
+  return err;
 }

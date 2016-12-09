@@ -374,7 +374,8 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
 
 
     local jointStatesOptimized = jointStates:clone()
-    local training_error = calib.optimizeDH(intrinsics,
+    local training_error = calib.optimizeDH(
+      intrinsics,
       distCoeffs,
       handEyeInv,
       jointStatesOptimized,
@@ -388,7 +389,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_d
       false,     -- optimize_robot_model_a
       false,     -- optimize_robot_model_alpha
-      false      -- optimize_joint_states       -- ## was true ...
+      false,     -- optimize_joint_states       -- ## was true ...
+      false,     -- optimize_pp,
+      false,     -- optimize_focal_length,
+      false      -- optimize_distortion
     )
 
     print("Error after optimizing HandEye:                 "..training_error)
@@ -426,7 +430,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_d
       false,     -- optimize_robot_model_a
       false,     -- optimize_robot_model_alpha
-      false      -- optimize_joint_states
+      false      -- optimize_joint_states,
+      false,     -- optimize_pp,
+      false,     -- optimize_focal_length,
+      false      -- optimize_distortion
     )
 
     print("Error Initial:                                     " .. init_error)
@@ -445,7 +452,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_d
       false,     -- optimize_robot_model_a
       true,     -- optimize_robot_model_alpha
-      false      -- optimize_joint_states
+      false,      -- optimize_joint_states
+      false,     -- optimize_pp,
+      false,     -- optimize_focal_length,
+      false      -- optimize_distortion
     )
 
     optimization_path  = optimization_path .. "(points + theta + alpha)"
@@ -464,7 +474,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       true,     -- optimize_robot_model_d
       true,     -- optimize_robot_model_a
       false,     -- optimize_robot_model_alpha
-      false      -- optimize_joint_states
+      falser      -- optimize_joint_states
+      false,     -- optimize_pp,
+      false,     -- optimize_focal_length,
+      false      -- optimize_distortion
     )
 
     optimization_path  = optimization_path .. "(points + d + a)"
@@ -484,7 +497,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
                  false,     -- optimize_robot_model_d
                  false,     -- optimize_robot_model_a
                  false,     -- optimize_robot_model_alpha
-                 false      -- optimize_joint_states
+                 false,      -- optimize_joint_states
+                 false,     -- optimize_pp,
+                false,     -- optimize_focal_length,
+                false      -- optimize_distortion
                  )
     optimization_path  = optimization_path .. "(handEye + points)"
 ]]
@@ -518,7 +534,10 @@ function Calibration:DHCrossValidate(trainTestSplitPercentage, iterations)
       false,     -- optimize_robot_model_d
       false,     -- optimize_robot_model_a
       false,     -- optimize_robot_model_alpha
-      false      -- optimize_joint_states
+      false,      -- optimize_joint_states
+      false,     -- optimize_pp,
+      false,     -- optimize_focal_length,
+      false      -- optimize_distortion
     )
     print("Error after optim of theta and alpha (Validation): " .. validation_error)
 
@@ -600,7 +619,10 @@ function Calibration:runBAMultiplePatterns()
     false,     -- optimize_robot_model_d
     false,     -- optimize_robot_model_a
     false,     -- optimize_robot_model_alpha
-    false      -- optimize_joint_states
+    false,      -- optimize_joint_states
+    false,     -- optimize_pp,
+    false,     -- optimize_focal_length,
+    false      -- optimize_distortion
   )
 
   print("Intrinsics2")
@@ -625,13 +647,16 @@ function Calibration:runBAMultiplePatterns()
     points3d,
     observations:clone(),
     jointPointIndices,
-    false,     -- optimize_hand_eye
+    true,     -- optimize_hand_eye
     false,      -- optimize_points
     false,      -- optimize_robot_model_theta
     false,     -- optimize_robot_model_d
     false,     -- optimize_robot_model_a
     false,      -- optimize_robot_model_alpha
-    false      -- optimize_joint_states
+    false,     -- optimize_joint_states
+    false,     -- optimize_pp,
+    false,     -- optimize_focal_length,
+    false      -- optimize_distortion
   )
 
   local final_error = calib.optimizeDH(
@@ -644,12 +669,15 @@ function Calibration:runBAMultiplePatterns()
     observations:clone(),
     jointPointIndices,
     true,      -- optimize_hand_eye
-    false,      -- optimize_points
+    false,     -- optimize_points
     false,     -- optimize_robot_model_theta
     false,     -- optimize_robot_model_d
     false,     -- optimize_robot_model_a
     false,     -- optimize_robot_model_alpha
-    false      -- optimize_joint_states
+    false,     -- optimize_joint_states
+    false,     -- optimize_pp,
+    false,     -- optimize_focal_length,
+    false      -- optimize_distortion
   )
 
   print("Last error: "..final_error)
@@ -660,7 +688,6 @@ function Calibration:runBAMultiplePatterns()
   print("HandEye after:")
   self.handEye = torch.inverse(handEye_inv)
   print(self.handEye)
-
 
 
   local v = pcl.PCLVisualizer('demo', true)

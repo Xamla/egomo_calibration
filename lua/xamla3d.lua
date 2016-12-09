@@ -288,7 +288,7 @@ function xamla3d.linearTriangulation (P, measurements)
     B[{(i-1)*2+2,1}] = p[{2,4}] - y * p[{3,4}]
   end
   
-  local AtA = torch.zeros(3,3)
+  local AtA = torch.zeros(3, 3)
   local Atb = A:t() * B
   AtA = A:t() * A
   local X = torch.inverse(AtA) * Atb

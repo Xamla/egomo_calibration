@@ -29,7 +29,10 @@ double calib___optimizeDH(
   bool optimize_robot_model_d,
   bool optimize_robot_model_a,
   bool optimize_robot_model_alpha,
-  bool optimize_joint_states);
+  bool optimize_joint_states,
+  bool optimize_pp,
+  bool optimize_focal_length,
+  bool optimize_distortion);
 ]]
 
 ffi.cdef(calib_cdef)
