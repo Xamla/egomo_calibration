@@ -103,9 +103,24 @@
     <File Name="lua/xamla3d.lua"/>
     <File Name="lua/Calibration.lua"/>
     <File Name="lua/Capture.lua"/>
+    <File Name="lua/handEyeCalibration.lua"/>
+    <File Name="lua/Camera.lua"/>
+    <File Name="lua/DepthCamera.lua"/>
+    <File Name="lua/DepthCalibrator.lua"/>
+    <File Name="lua/EgomoSensor.lua"/>
+    <File Name="lua/test.lua"/>
+    <File Name="lua/ImageSaver.lua"/>
   </VirtualDirectory>
   <VirtualDirectory Name="examples">
     <File Name="examples/multi_target_ur5.lua"/>
     <File Name="examples/multi_capture.lua"/>
+    <File Name="examples/calibration_stereo.lua"/>
+    <File Name="examples/calibration_intrinsic.lua"/>
+    <File Name="examples/calibration_hand_eye.lua"/>
+    <File Name="examples/FctPointers.lua"/>
+    <File Name="examples/ImageSaver.lua"/>
+    <File Name="examples/capture.lua"/>
+    <File Name="examples/dh_calibration.lua"/>
+    <File Name="examples/calibration_depth.lua"/>
   </VirtualDirectory>
 </CodeLite_Project>
