@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8.11)
 
-project(egomo_calibration)
+project(egomo_calibration_py)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(Torch REQUIRED)
 find_package(Boost 1.47.0 REQUIRED COMPONENTS system thread chrono)
 
+
+# Some packages needed for Ceres:
+# ===============================
 find_package(Eigen REQUIRED)
 if (EIGEN_FOUND)
   if (EIGEN_VERSION VERSION_LESS 3.1.0)
@@ -29,6 +31,14 @@ if (BLAS_FOUND)
 else (BLAS_FOUND)
   message("-- Did not find BLAS library, disabling LAPACK support.")
 endif (BLAS_FOUND)
+
+find_package(SuiteSparse QUIET)
+if (SuiteSparse_FOUND)
+  message("-- Found SuiteSparse libraries: ${SUITESPARSE_LIBRARIES} ${SUITESPARSE_VERSION} ${SUITESPARSE_INCLUDE_DIRS}")
+  message("-- Found SuiteSparse version ${SUITESPARSE_VERSION} in: ${SUITESPARSE_INCLUDE_DIRS}")
+else (SuiteSparse_FOUND)
+  message("-- Did not find SuiteSparse libraries, disabling SuiteSparse support.")
+endif (SuiteSparse_FOUND)
 
 # Multithreading using OpenMP
 option(OPENMP "Enable threaded solving in Ceres (requires OpenMP)" ON)
@@ -73,29 +83,32 @@ else (GLOG_FOUND)
     "implementation.")
 endif (GLOG_FOUND)
 
-set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=3 -Wall" )
+find_package(Ceres REQUIRED)
+# ===============================
 
-set(src
-  "${SOURCE_DIR}/bundle_adjuster.cpp"
-)
+set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fmax-errors=3 -Wall" )
+
+set(src "${SOURCE_DIR}/bundle_adjuster.cpp")
 
 include_directories(
   ${Boost_INCLUDE_DIRS}
-  ${Torch_INSTALL_INCLUDE}
+  ${EIGEN_INCLUDE_DIRS}
   ${GLOG_INCLUDE_DIRS}
+  ${SUITESPARSE_INCLUDE_DIRS}
 )
 include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
+include_directories(SYSTEM ${SUITESPARSE_INCLUDE_DIRS})
 
 link_directories(
-  ${Torch_INSTALL_LIB}
   ${Boost_LIBRARY_DIRS}
+  #${SUITESPARSE_LIBRARY_DIRS}
 )
 
-add_library(egomo_calibration MODULE ${src})
+add_library(egomo_calibration_py MODULE ${src})
 
-target_link_libraries(egomo_calibration TH ceres ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${GLOG_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(egomo_calibration_py ceres ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${SUITESPARSE_LIBRARIES} ${GLOG_LIBRARIES} ${Boost_LIBRARIES})
 
-install(TARGETS egomo_calibration LIBRARY DESTINATION ${Torch_INSTALL_LUA_CPATH_SUBDIR})
-install(DIRECTORY "lua/" DESTINATION "${Torch_INSTALL_LUA_PATH_SUBDIR}/egomo_calibration" FILES_MATCHING PATTERN "*.lua")
-
+set(INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/usr/local/lib/)
+install(TARGETS egomo_calibration_py LIBRARY DESTINATION ${INSTALL_PATH})
+#install(DIRECTORY "python/" DESTINATION "${INSTALL_PATH}/egomo_calibration_py" FILES_MATCHING PATTERN "*.py")
