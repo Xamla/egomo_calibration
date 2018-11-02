@@ -28,19 +28,17 @@ Other dependencies:
 
 Calibration files:
 ------------------
-* From "rosvita@rosvita-controller-1:/home/rosvita/code/altrogge/"
-get ("calibration_rand50.tgz") and extract folder.
-* Move this folder "calibration_rand50" into the parent directory of "egomo_calibration_py".
+* From ... (TODO: choose a place for the data)
+get "calibration_rand50.tgz" and extract folder.
+* Move this folder (i.e. "calibration_rand50") into the parent directory of "egomo_calibration".
 
-In egomo_calibration_py:
-========================
+In egomo_calibration:
+=====================
 * cmake -E make_directory build
 * cd build
 * cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(PREFIX)"
 * make
-
 * cd ../python
 * sudo python3 setup.py develop
-
 * cd ../examples/
 * python3 dh_calib_motoman.py
