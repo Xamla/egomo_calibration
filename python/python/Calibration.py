@@ -608,16 +608,16 @@ class Calibration:
       self.robotModel["dh"] = robotModel
 
       offset = np.zeros(shape=(4,8), dtype=np.float64)
-      for i in range(0, 4) :
-        for j in range(0, 8) :
-          offset[i][j] = robotModel[i][j] - original_robotModel[i][j]
+      for j in range(0, 4) :
+        for k in range(0, 8) :
+          offset[j][k] = robotModel[j][k] - original_robotModel[j][k]
       
       offset_units = np.zeros(shape=(4,8), dtype=np.float64)
-      for i in range(0, 8) :
-        offset_units[0][i] = offset[0][i] * 180 / M_PI
-        offset_units[1][i] = offset[1][i] * 1000.0
-        offset_units[2][i] = offset[2][i] * 1000.0
-        offset_units[3][i] = offset[3][i] * 180 / M_PI
+      for j in range(0, 8) :
+        offset_units[0][j] = offset[0][j] * 180 / M_PI
+        offset_units[1][j] = offset[1][j] * 1000.0
+        offset_units[2][j] = offset[2][j] * 1000.0
+        offset_units[3][j] = offset[3][j] * 180 / M_PI
 
       print("Offset (from original model) (i.e. robotModel = originalModel + Offset):")
       print("Joint 0 (theta, d, a, alpha): {:f} degree, {:f} mm, {:f} mm, {:f} degree".format(offset[0][0] * 180/M_PI, offset[1][0] * 1000, offset[2][0] * 1000, offset[3][0] * 180/M_PI))
@@ -661,21 +661,21 @@ class Calibration:
       pointSize = 0.005
       # calculates the groundtruth x, y, z positions of the points of the asymmetric circle pattern
       target_points = np.zeros(shape=(pointsX*pointsY, 1, 4), dtype=np.float64)
-      i = 0
+      j = 0
       for y in range(0, pointsY) :
         for x in range(0, pointsX) :
-          target_points[i][0][0] = (2 * x + y % 2) * pointSize
-          target_points[i][0][1] = y * pointSize
-          target_points[i][0][2] = 0
-          target_points[i][0][3] = 1
-          i = i + 1
+          target_points[j][0][0] = (2 * x + y % 2) * pointSize
+          target_points[j][0][1] = y * pointSize
+          target_points[j][0][2] = 0
+          target_points[j][0][3] = 1
+          j = j + 1
 
-      for i in range(0, len(self.images)) :
-        tcp_pose = self.forward_kinematic(self.images[i]["jointStates"], robotModel, self.robotModel["joint_direction"])     
+      for j in range(0, len(self.images)) :
+        tcp_pose = self.forward_kinematic(self.images[j]["jointStates"], robotModel, self.robotModel["joint_direction"])     
         camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
         reprojections = []
-        for j in range(0, pointsX*pointsY) :
-          in_camera = np.matmul(camera_to_target, target_points[j][0])
+        for k in range(0, pointsX*pointsY) :
+          in_camera = np.matmul(camera_to_target, target_points[k][0])
           xp1 = in_camera[0]
           yp1 = in_camera[1]
           zp1 = in_camera[2]
@@ -692,11 +692,11 @@ class Calibration:
           x_image = intrinsics[0][0] * xp + intrinsics[0][2]
           y_image = intrinsics[1][1] * yp + intrinsics[1][2]
           reprojections.append((x_image, y_image))
-        frame = deepcopy(self.images[i]["image"])
-        for j in range(0, len(reprojections)) :
-          pt_x = int(round(reprojections[j][0]))
-          pt_y = int(round(reprojections[j][1]))
+        frame = deepcopy(self.images[j]["image"])
+        for k in range(0, len(reprojections)) :
+          pt_x = int(round(reprojections[k][0]))
+          pt_y = int(round(reprojections[k][1]))
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
-        cv.imshow("reprojection error for image {:d}".format(i), frame)
+        cv.imshow("reprojection error for image {:d}".format(j), frame)
         cv.waitKey(500)     
       

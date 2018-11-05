@@ -278,9 +278,11 @@ struct SnavelyReprojectionError {
     
     T robot_model_d_[8];
     T robot_model_a_[8];
+    T robot_model_theta_[8];
     for (int i = 0; i < 8; ++i) {
       robot_model_d_[i] = robot_model_d[i];
       robot_model_a_[i] = robot_model_a[i];
+      robot_model_theta_[i] = robot_model_theta[i];
     }
     // optimize only shoulder_height = d[0], upper_arm_length = a[1], 
     // forearm_length = a[2] and wrist{1,2,3}_length = d[3,4,5]:
@@ -292,7 +294,9 @@ struct SnavelyReprojectionError {
     //robot_model_a_[4] = T(0);
     //robot_model_a_[5] = T(0);
 
-    k(robot_model_theta, robot_model_d_, robot_model_a_, robot_model_alpha, joint_state, pose_storage);
+    robot_model_theta_[0] = T(0);
+
+    k(robot_model_theta_, robot_model_d_, robot_model_a_, robot_model_alpha, joint_state, pose_storage);
     
     // transform point (= 3d pattern point in base coordinates)
     // -> to a 2d pattern point in camera coordinates:
