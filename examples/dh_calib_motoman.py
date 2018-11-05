@@ -127,8 +127,8 @@ theta = np.zeros(8, dtype=np.float64)
 alpha = np.zeros(8, dtype=np.float64)
 d = np.zeros(8, dtype=np.float64)
 a = np.zeros(8, dtype=np.float64)
-d[0] = 0.3; d[1] = -0.265; d[3] = -0.36; d[5] = -0.36; d[7] = -0.175
-a[0] = 0.1
+d[0] = 0.3; d[1] = -0.2645; d[3] = -0.36; d[5] = -0.36; d[7] = -0.175
+a[0] = 0.09996
 alpha[0] = M_PI/2.0; alpha[1] = -M_PI/2.0; alpha[2] = M_PI/2.0; alpha[3] = -M_PI/2.0
 alpha[4] = M_PI/2.0; alpha[5] = -M_PI/2.0; alpha[6] = M_PI/2.0
 
