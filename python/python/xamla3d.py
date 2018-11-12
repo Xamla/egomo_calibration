@@ -191,5 +191,21 @@ class Xamla3d:
     return result
   
 
+  # generates ground truth circle center positions of the points 
+  # of the asymmetric circle pattern.
+  # z is set to 0 for all points.
+  def generatePatternPoints(self, pointsX, pointsY, pointSize) :
+    target_points = np.zeros(shape=(pointsX*pointsY, 1, 4), dtype=np.float64)
+    j = 0
+    for y in range(0, pointsY) :
+      for x in range(0, pointsX) :
+        target_points[j][0][0] = (2 * x + y % 2) * pointSize
+        target_points[j][0][1] = y * pointSize
+        target_points[j][0][2] = 0
+        target_points[j][0][3] = 1
+        j = j + 1
+    return target_points
+
+
   def __init__(self) :
     self.check = True
