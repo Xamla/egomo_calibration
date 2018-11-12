@@ -314,6 +314,7 @@ class PatternLocalisation:
     nPoints = self.pattern["width"] * self.pattern["height"]
     pointsInCamCoords = np.zeros((nPoints, 3), np.float64)
     circlesGridPointsLeft = np.zeros(shape=(nPoints, 2))
+    circlesGridPointsRight = np.zeros(shape=(nPoints, 2))
 
     # Stereo Rectify:
     R = rightLeftCamTrafo[:3,:3]

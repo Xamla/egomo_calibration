@@ -71,7 +71,7 @@ class Xamla3d:
       height = int(image.shape[0])
 
       imgScale = cv.resize(image, (width, height))
-      imgScale = grayToRGB(imgScale)
+      imgScale = self.grayToRGB(imgScale)
       #cv2.imshow("Scaled Image", imgScale)
       #cv2.waitKey(3000)
       #print(imgScale.shape)
@@ -84,7 +84,7 @@ class Xamla3d:
                   thickness = 2, lineType = cv.LINE_AA, shift = shiftBits)
         i += 1
       cv.imshow("circleFinder", imgScale)
-      cv.waitKey(3000)
+      cv.waitKey(500)
       cv.destroyWindow(winname = "circleFinder")
 
     pointFindSuccess, centers = cv.findCirclesGrid(image=image, patternSize=patternSize, flags=patternType, blobDetector = blobDetector)
@@ -94,8 +94,8 @@ class Xamla3d:
       return True, centers
     else :
       print("Calibration pattern not found!")
-      #cv.imshow("not found image", image)
-      #cv.waitKey(1000)
+      cv.imshow("not found image", image)
+      cv.waitKey(1000)
       return False, None
 
 

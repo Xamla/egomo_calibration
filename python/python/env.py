@@ -27,4 +27,17 @@ ffi.cdef("""
                            bool optimize_distortion);
 """)
 
+ffi.cdef("""
+         double evaluateDH(double *intrinsics,
+                           double * distortion,
+                           double *hand_eye,
+                           double *joint_states,
+                           double *robot_model,
+                           double *points,
+                           double *observations,
+                           long *jointpoint_indices,
+                           int num_joint_states,
+                           int num_points);
+""")
+
 clib = ffi.dlopen("../build/libegomo_calibration_py.so")

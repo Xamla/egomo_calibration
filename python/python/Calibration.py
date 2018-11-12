@@ -524,12 +524,6 @@ class Calibration:
 
     for i in range(0, iterations) :
 
-      observations = None
-      jointPointIndices = None
-      jointStates = None
-      points3d = None
-      calibrationData = None
-
       idxForValidationPerPattern = []
 
       #for k,v in ipairs(self.patternIDs) do
@@ -543,6 +537,124 @@ class Calibration:
       idxForValidationPerPattern.append(idxValidation)
       print("idxTraining:")
       print(idxTraining)
+
+      # Preparations to visualize the reprojection error:
+      # =================================================
+      # Generate ground truth circle center points of the calibration pattern.
+      # Z is set to 0 for all points.
+      pointsX = 8
+      pointsY = 21
+      pointSize = 0.005
+      # calculates the groundtruth x, y, z positions of the points of the asymmetric circle pattern
+      target_points = np.zeros(shape=(pointsX*pointsY, 1, 4), dtype=np.float64)
+      j = 0
+      for y in range(0, pointsY) :
+        for x in range(0, pointsX) :
+          target_points[j][0][0] = (2 * x + y % 2) * pointSize
+          target_points[j][0][1] = y * pointSize
+          target_points[j][0][2] = 0
+          target_points[j][0][3] = 1
+          j = j + 1
+
+      ######################################## EVALUATION (before optimization) ###################################################
+      print("*************************************")
+      print("* EVALUATION (before optimization): *")
+      print("*************************************")
+      #idxValidation = idxTraining # remove after evaluation!!!
+      print("idxValidation:")
+      print(idxValidation)
+      if (len(idxValidation) > 0) :
+        observations = None
+        jointPointIndices = None
+        jointStates = None
+        points3d = None
+        calibrationData = None
+        observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDs(idxValidation, observations, jointPointIndices, jointStates, points3d, calibrationData)
+
+        intrinsics = deepcopy(self.intrinsics)
+        distCoeffs = deepcopy(self.distCoeffs)
+        handEye = deepcopy(self.handEye)
+        handEyeInv = inv(handEye)
+        print('handEyeInv:')
+        print(handEyeInv)
+
+        robotModel, robotJointDir = self.robotModel["dh"], self.robotModel["joint_direction"]
+
+        jointStatesOptimized = deepcopy(jointStates)
+        num_joint_states = len(jointStates)
+        num_points = len(points3d)
+        training_error = None
+
+        intrinsics_cdata = ffi.cast("double *", ffi.from_buffer(intrinsics))
+        distCoeffs_cdata = ffi.cast("double *", ffi.from_buffer(distCoeffs))
+        handEyeInv_cdata = ffi.cast("double *", ffi.from_buffer(handEyeInv))
+        jointStatesOptimized_cdata = ffi.cast("double *", ffi.from_buffer(jointStatesOptimized))
+        robotModel_cdata = ffi.cast("double *", ffi.from_buffer(robotModel))
+        points3d_cdata = ffi.cast("double *", ffi.from_buffer(points3d))
+        observations_cdata = ffi.cast("double *", ffi.from_buffer(observations))
+        jointPointIndices_cdata = ffi.cast("long *", ffi.from_buffer(jointPointIndices))
+
+        validation_error = clib.evaluateDH(
+          intrinsics_cdata,
+          distCoeffs_cdata,
+          handEyeInv_cdata,
+          jointStatesOptimized_cdata,
+          robotModel_cdata,
+          points3d_cdata,
+          observations_cdata,
+          jointPointIndices_cdata,
+          num_joint_states,
+          num_points)
+
+        print("*********************************************")
+        print("Validation error:  ", validation_error)
+        print("*********************************************")
+        print("\n")
+
+        variance, standard_deviation, variance_all, stdev_all, base_to_target = self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
+
+        print("********************************************************************************")
+        print("* Show the reprojection error for all pattern points in all validation images: *")
+        print("********************************************************************************")
+
+        for j in range(0, len(idxValidation)) :
+            tcp_pose = self.forward_kinematic(self.images[idxValidation[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
+            camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
+            reprojections = []
+            for k in range(0, pointsX*pointsY) :
+              in_camera = np.matmul(camera_to_target, target_points[k][0])
+              xp1 = in_camera[0]
+              yp1 = in_camera[1]
+              zp1 = in_camera[2]
+              # Scale into the image plane by distance away from camera
+              xp = 0.0
+              yp = 0.0
+              if (zp1 == 0) : # avoid divide by zero
+                xp = xp1
+                yp = yp1
+              else :
+                xp = xp1 / zp1
+                yp = yp1 / zp1
+              # Perform projection using focal length and camera optical center into image plane
+              x_image = intrinsics[0][0] * xp + intrinsics[0][2]
+              y_image = intrinsics[1][1] * yp + intrinsics[1][2]
+              reprojections.append((x_image, y_image))
+            frame = deepcopy(self.images[idxValidation[j]]["image"])
+            for k in range(0, len(reprojections)) :
+              pt_x = int(round(reprojections[k][0]))
+              pt_y = int(round(reprojections[k][1]))
+              cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
+            cv.imshow("reprojection error for image {:d}".format(idxValidation[j]), frame)
+            cv.waitKey(500)     
+      #############################################################################################################################
+      #sys.exit()
+
+      observations = None
+      jointPointIndices = None
+      jointStates = None
+      points3d = None
+      calibrationData = None
+
       observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDs(idxTraining, observations, jointPointIndices, jointStates, points3d, calibrationData)
 
       intrinsics = deepcopy(self.intrinsics)
@@ -603,7 +715,7 @@ class Calibration:
       print("*********************************************")
       print("\n")
 
-      robotModel_fn = "robotModel_{:03d}".format(i)
+      robotModel_fn = "robotModel_optimized_2ndTime_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
 
@@ -639,7 +751,7 @@ class Calibration:
       #print(inv(handEye_original))
       #print("Optimized inverse hand-eye:")
       #print(handEyeInv)
-      handEye_fn = "handEye_{:03d}".format(i)
+      handEye_fn = "handEye_optimized_2ndTime_{:03d}".format(i)
       np.save(handEye_fn, handEye)
       self.handEye = handEye
             
@@ -648,30 +760,12 @@ class Calibration:
       print("***********************************************************")
       variance, standard_deviation, variance_all, stdev_all, base_to_target = self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
 
-      print("**********************************************************************")
-      print("* Show the reprojection error for all pattern points in all images: *")
-      print("**********************************************************************")
+      print("******************************************************************************")
+      print("* Show the reprojection error for all pattern points in all training images: *")
+      print("******************************************************************************")
 
-      # Preparations to visualize the reprojection error:
-      # =================================================
-      # Generate ground truth circle center points of the calibration pattern.
-      # Z is set to 0 for all points.
-      pointsX = 8
-      pointsY = 21
-      pointSize = 0.005
-      # calculates the groundtruth x, y, z positions of the points of the asymmetric circle pattern
-      target_points = np.zeros(shape=(pointsX*pointsY, 1, 4), dtype=np.float64)
-      j = 0
-      for y in range(0, pointsY) :
-        for x in range(0, pointsX) :
-          target_points[j][0][0] = (2 * x + y % 2) * pointSize
-          target_points[j][0][1] = y * pointSize
-          target_points[j][0][2] = 0
-          target_points[j][0][3] = 1
-          j = j + 1
-
-      for j in range(0, len(self.images)) :
-        tcp_pose = self.forward_kinematic(self.images[j]["jointStates"], robotModel, self.robotModel["joint_direction"])     
+      for j in range(0, nTraining) : #len(self.images)) :
+        tcp_pose = self.forward_kinematic(self.images[idxTraining[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
         camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
         reprojections = []
         for k in range(0, pointsX*pointsY) :
@@ -692,11 +786,100 @@ class Calibration:
           x_image = intrinsics[0][0] * xp + intrinsics[0][2]
           y_image = intrinsics[1][1] * yp + intrinsics[1][2]
           reprojections.append((x_image, y_image))
-        frame = deepcopy(self.images[j]["image"])
+        frame = deepcopy(self.images[idxTraining[j]]["image"])
         for k in range(0, len(reprojections)) :
           pt_x = int(round(reprojections[k][0]))
           pt_y = int(round(reprojections[k][1]))
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
-        cv.imshow("reprojection error for image {:d}".format(j), frame)
+        cv.imshow("reprojection error for image {:d}".format(idxTraining[j]), frame)
         cv.waitKey(500)     
       
+    ######################################## EVALUATION (after optimization) ###################################################
+    print("************************************")
+    print("* EVALUATION (after optimization): *")
+    print("************************************")
+    print("idxValidation:")
+    print(idxValidation)
+    if (len(idxValidation) > 0) :
+      observations = None
+      jointPointIndices = None
+      jointStates = None
+      points3d = None
+      calibrationData = None
+      observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDs(idxValidation, observations, jointPointIndices, jointStates, points3d, calibrationData)
+
+      intrinsics = deepcopy(self.intrinsics)
+      distCoeffs = deepcopy(self.distCoeffs)
+      handEye = deepcopy(self.handEye)
+      handEyeInv = inv(handEye)
+      print('handEyeInv:')
+      print(handEyeInv)
+
+      robotModel, robotJointDir = self.robotModel["dh"], self.robotModel["joint_direction"]
+
+      jointStatesOptimized = deepcopy(jointStates)
+      num_joint_states = len(jointStates)
+      num_points = len(points3d)
+      training_error = None
+
+      intrinsics_cdata = ffi.cast("double *", ffi.from_buffer(intrinsics))
+      distCoeffs_cdata = ffi.cast("double *", ffi.from_buffer(distCoeffs))
+      handEyeInv_cdata = ffi.cast("double *", ffi.from_buffer(handEyeInv))
+      jointStatesOptimized_cdata = ffi.cast("double *", ffi.from_buffer(jointStatesOptimized))
+      robotModel_cdata = ffi.cast("double *", ffi.from_buffer(robotModel))
+      points3d_cdata = ffi.cast("double *", ffi.from_buffer(points3d))
+      observations_cdata = ffi.cast("double *", ffi.from_buffer(observations))
+      jointPointIndices_cdata = ffi.cast("long *", ffi.from_buffer(jointPointIndices))
+
+      validation_error = clib.evaluateDH(
+        intrinsics_cdata,
+        distCoeffs_cdata,
+        handEyeInv_cdata,
+        jointStatesOptimized_cdata,
+        robotModel_cdata,
+        points3d_cdata,
+        observations_cdata,
+        jointPointIndices_cdata,
+        num_joint_states,
+        num_points)
+
+      print("*********************************************")
+      print("Validation error:  ", validation_error)
+      print("*********************************************")
+      print("\n")
+
+      print("********************************************************************************")
+      print("* Show the reprojection error for all pattern points in all validation images: *")
+      print("********************************************************************************")
+
+      for j in range(0, len(idxValidation)) :
+          tcp_pose = self.forward_kinematic(self.images[idxValidation[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
+          camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
+          reprojections = []
+          for k in range(0, pointsX*pointsY) :
+            in_camera = np.matmul(camera_to_target, target_points[k][0])
+            xp1 = in_camera[0]
+            yp1 = in_camera[1]
+            zp1 = in_camera[2]
+            # Scale into the image plane by distance away from camera
+            xp = 0.0
+            yp = 0.0
+            if (zp1 == 0) : # avoid divide by zero
+              xp = xp1
+              yp = yp1
+            else :
+              xp = xp1 / zp1
+              yp = yp1 / zp1
+            # Perform projection using focal length and camera optical center into image plane
+            x_image = intrinsics[0][0] * xp + intrinsics[0][2]
+            y_image = intrinsics[1][1] * yp + intrinsics[1][2]
+            reprojections.append((x_image, y_image))
+          frame = deepcopy(self.images[idxValidation[j]]["image"])
+          for k in range(0, len(reprojections)) :
+            pt_x = int(round(reprojections[k][0]))
+            pt_y = int(round(reprojections[k][1]))
+            cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
+          cv.imshow("reprojection error for image {:d}".format(idxValidation[j]), frame)
+          cv.waitKey(500)    
+    ########################################################################################### 
+    

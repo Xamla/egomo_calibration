@@ -747,7 +747,6 @@ public:
 
 
 // Function calls:
-/*
 double evaluateDH(
   double *intrinsics,   // camera intrinsics 3x3 matrix
   double *distortion,   // distortion 2 element vector
@@ -756,13 +755,21 @@ double evaluateDH(
   double *robot_model,
   double *points,
   double *observations,
-  long *jointpoint_indices
+  long *jointpoint_indices,
+  int num_joint_states,
+  int num_points
 ) {
   //google::InitGoogleLogging("/tmp");
-  DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices);
-  return calib.calcAverageReproductionError();
+  double evaluation_error = 0;
+  DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points);
+  std::cout << "=========================================================" << std::endl;
+  std::cout << "Call of \"calcAverageReproductionError()\" in evaluation:" << std::endl;
+  std::cout << "=========================================================" << std::endl;
+  evaluation_error = calib.calcAverageReproductionError();
+  std::cout << "evaluation_error = " << evaluation_error << std::endl;
+  return evaluation_error;
 }
-*/
+
 
 double optimizeDH(
   double *intrinsics,   // camera intrinsics 3x3 matrix
