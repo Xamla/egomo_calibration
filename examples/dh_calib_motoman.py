@@ -33,56 +33,8 @@ distCoeffs[0] = -0.0214
 distCoeffs[1] = 0.6362
 
 calibration_path = "../../calibration_rand50/stereo_cams_4103130811_4103189394.npy"
-#calibration_path = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/stereo_cams_4103130811_4103189394.npy"
-#calibration_path = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/stereo_cams_4103130811_4103189394.npy"
-#calibration_path = "../../calib_before_all/stereo_cams_4103130811_4103189394_old.npy"
-#calibration_path = "../../calib_after_all/stereo_cams_4103130811_4103189394_new.npy"
 stereoCalib = np.load(calibration_path).item()
-#torch_calibration_path = "/home/inga/Rosvita/projects/SDA10D_left_arm_onboardCams/calibration/current_20_without_12/stereo_cams_4103130811_4103189394.t7"
-#torch_calibration_path = "../../calib_after_all/stereo_cams_4103130811_4103189394_new.t7"
-#stereoCalib = torchfile.load(torch_calibration_path)
-"""
-print("stereoCalib:")
-print(stereoCalib)
-stereo_calib = {}
-stereo_calib['camLeftMatrix'] = stereoCalib[b'camLeftMatrix'].astype(np.float64)
-stereo_calib['camRightMatrix'] = stereoCalib[b'camRightMatrix'].astype(np.float64)
-stereo_calib['camLeftDistCoeffs'] = stereoCalib[b'camLeftDistCoeffs'].astype(np.float64)
-stereo_calib['camRightDistCoeffs'] = stereoCalib[b'camRightDistCoeffs'].astype(np.float64)
-stereo_calib['trafoLeftToRightCam'] = stereoCalib[b'trafoLeftToRightCam'].astype(np.float64)
-stereo_calib['R'] = stereoCalib[b'R'].astype(np.float64)
-stereo_calib['F'] = stereoCalib[b'F'].astype(np.float64)
-stereo_calib['E'] = stereoCalib[b'E'].astype(np.float64)
-stereo_calib['T'] = stereoCalib[b'T'].astype(np.float64)
-stereo_calib['reprojError'] = stereoCalib[b'reprojError']
-stereo_calib['date'] = stereoCalib[b'date']
-stereo_calib['imHeight'] = stereoCalib[b'imHeight']
-stereo_calib['imWidth'] = stereoCalib[b'imWidth']
-patternGeometry = { 'width': stereoCalib[b'patternGeometry'][b'width'], 
-                    'height': stereoCalib[b'patternGeometry'][b'height'], 
-                    'pointDist': stereoCalib[b'patternGeometry'][b'pointDist'] }
-stereo_calib['patternGeometry'] = patternGeometry
-calibrationFlags = {}
-calibrationFlags['CALIB_RATIONAL_MODEL'] = stereoCalib[b'calibrationFlags'][b'CALIB_RATIONAL_MODEL']
-calibrationFlags['CALIB_FIX_PRINCIPAL_POINT'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_PRINCIPAL_POINT']
-calibrationFlags['CALIB_USE_INTRINSIC_GUESS'] = stereoCalib[b'calibrationFlags'][b'CALIB_USE_INTRINSIC_GUESS']
-calibrationFlags['CALIB_FIX_ASPECT_RATIO'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_ASPECT_RATIO']
-calibrationFlags['CALIB_FIX_K1'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K1']
-calibrationFlags['CALIB_FIX_K2'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K2']
-calibrationFlags['CALIB_FIX_K3'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K3']
-calibrationFlags['CALIB_FIX_K4'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K4']
-calibrationFlags['CALIB_FIX_K5'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K5']
-calibrationFlags['CALIB_FIX_K6'] = stereoCalib[b'calibrationFlags'][b'CALIB_FIX_K6']
-calibrationFlags['CALIB_ZERO_TANGENT_DIST'] = stereoCalib[b'calibrationFlags'][b'CALIB_ZERO_TANGENT_DIST']
-stereo_calib['calibrationFlags'] = calibrationFlags
-print("stereo_calib:")
-print(stereo_calib)
-np.save(calibration_path, stereo_calib)
-sys.exit()
-"""
 
-#intrinsic = stereoCalib[b'camLeftMatrix'].astype(np.float64)
-##intrinsic = stereoCalib.camLeftMatrix.astype(np.float64)
 intrinsic = stereoCalib['camLeftMatrix']
 distCoeffs = stereoCalib['camLeftDistCoeffs']
 print("intrinsic:")
@@ -90,17 +42,7 @@ print(intrinsic)
 print(intrinsic.dtype)
 
 heye_path = "../../calibration_rand50/HandEye.npy"
-#heye_path = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/HandEye.npy"
-#heye_path = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/handEye_optimized.npy"
-#heye_path = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/handEye_optimized.npy"
-#heye_path = "../../calib_before_all/HandEye.npy"
-#heye_path = "../../calib_before_all/handEye_optimized.npy"
-#heye_path = "../../calib_after_all/handEye_optimized.npy"
 hand_eye = np.load(heye_path)
-#torch_heye_path = "/home/inga/Rosvita/projects/SDA10D_left_arm_onboardCams/calibration/current_20_without_12/HandEye.t7"
-#hand_eye = torchfile.load(torch_heye_path).astype(np.float64)
-#np.save(heye_path, hand_eye)
-#sys.exit()
 #hand_eye = np.identity(4, dtype=np.float64)
 #hand_eye[0:2,0:2] = np.identity(3)
 #hand_eye[0][0] = -1.0
@@ -164,56 +106,15 @@ for i in range(0, 50):
 #for i in range(0, 25): # 42):
   image_fn = "../../calibration_rand50/capture_all/cam_4103130811_{:03d}.png".format(i+1)
   image_right_fn = "../../calibration_rand50/capture_all/cam_4103189394_{:03d}.png".format(i+1)
-  #image_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/capture_all/cam_4103130811_{:03d}.png".format(i+1)
-  #image_right_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/capture_all/cam_4103189394_{:03d}.png".format(i+1)
-  #image_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/capture_all/cam_4103130811_{:03d}.png".format(i+1)
-  #image_right_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/capture_all/cam_4103189394_{:03d}.png".format(i+1)
-  #image_fn = "../../calib_before_all/capture_all/cam_4103130811_{:03d}.png".format(i+1)
-  #image_right_fn = "../../calib_before_all/capture_all/cam_4103189394_{:03d}.png".format(i+1)
-  #image_fn = "../../calib_after_all/capture_all/cam_4103130811_{:03d}.png".format(i+1)
-  #image_right_fn = "../../calib_after_all/capture_all/cam_4103189394_{:03d}.png".format(i+1)
   image = cv.imread(image_fn)
   image_right = cv.imread(image_right_fn)
   images.append(image)
   imagesRight.append(image_right)
 
 jsposes_fn = "../../calibration_rand50/jsposes_tensors.npy"
-#jsposes_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/jsposes_new.npy"
-#jsposes_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/jsposes_tensors.npy"
-#jsposes_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/jsposes_new.npy"
-#jsposes_fn = "../../calib_before_all/jsposes_tensors.npy"
-#jsposes_fn = "../../calib_before_all/jsposes_new.npy"
-#jsposes_fn = "../../calib_after_all/jsposes_tensors.npy"
 jsposes = np.load(jsposes_fn).item()
-#all_vals_tensors_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/all_vals_tensors.npy"
-#all_vals_tensors_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/all_vals_tensors.npy"
-#all_vals_tensors_fn = "../../calib_before_all/all_vals_tensors.npy"
-#all_vals_tensors_fn = "../../calib_after_all/all_vals_tensors.npy"
-#all_vals_tensors = np.load(all_vals_tensors_fn)
-#torch_all_vals_tensors_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/all_vals_tensors.t7"
-#torch_all_vals_tensors_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/all_vals_tensors.t7"
-#torch_all_vals_tensors_fn = "../../calib_before_all/all_vals_tensors.t7"
-#torch_all_vals_tensors_fn = "../../calib_after_all/all_vals_tensors.t7"
-#all_vals_tensors = torchfile.load(torch_all_vals_tensors_fn)
-#print("all_vals_tensors[0]:")
-#print(all_vals_tensors[0])
-#torch_jsposes_fn = "/home/inga/Rosvita/projects/SDA10D_left_arm_onboardCams/calibration/current_all/jsposes_tensors.t7"
-#torch_jsposes_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/jsposes_tensors.t7"
-#torch_jsposes_fn = "../../calib_evaluate_before_home0_setting_and_HandEye_theta_opt/jsposes_new.t7"
-#torch_jsposes_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/jsposes_tensors.t7"
-#torch_jsposes_fn = "../../calib_evaluate_after_home0_setting_and_HandEye_theat_opt/jsposes_new.t7"
-#torch_jsposes_fn = "../../calib_before_all/jsposes_tensors.t7"
-#torch_jsposes_fn = "../../calib_before_all/jsposes_new.t7"
-#torch_jsposes_fn = "../../calib_after_all/jsposes_tensors.t7"
-#jsposes = torchfile.load(torch_jsposes_fn)
-#jsposes_tensors = {}
-#jsposes_tensors['recorded_poses'] = jsposes[b'recorded_poses']
-#jsposes_tensors['recorded_joint_values'] = jsposes[b'recorded_joint_values']
-#np.save(jsposes_fn, jsposes_tensors)
-#np.save(all_vals_tensors_fn, all_vals_tensors)
-#sys.exit()
-#print("jsposes:")
-#print(jsposes)
+all_vals_tensors_fn = "../../calibration_rand50/all_vals_tensors.npy"
+all_vals_tensors = np.load(all_vals_tensors_fn)
 robotPoses = []
 jointValues = []
 for i in range(0, len(images)):
@@ -221,9 +122,8 @@ for i in range(0, len(images)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
-  jointVals[0] = -0.8168959021514733 # see world view
-  #jointVals[0] = all_vals_tensors[0] #-0.8168959021514733 # see world view
-  #jointVals[1:8] = jsposes[b'recorded_joint_values'][i]
+  #jointVals[0] = -0.8168959021514733 # see world view
+  jointVals[0] = all_vals_tensors[0]
   jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
 
