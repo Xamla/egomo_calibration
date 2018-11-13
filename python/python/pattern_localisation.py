@@ -472,11 +472,16 @@ class PatternLocalisation:
       if new_y_unit_vec.dot(y_unit_vec) < 0.0 :
         new_y_unit_vec *= -1.0
 
+      newer_x_unit_vec = np.cross(new_y_unit_vec, z_unit_vec)
+      newer_x_unit_vec = newer_x_unit_vec / norm(newer_x_unit_vec)
+      new_y_unit_vec = new_y_unit_vec / norm(new_y_unit_vec)
+      z_unit_vec = z_unit_vec / norm(z_unit_vec)
+
       # Transform pattern coordinate system into camera coordinate system:
       # M_B->A = (x_unit_vec, y_unit_vec, z_unit_vec, support vector)
-      camPoseFinal[0][0] = new_x_unit_vec[0]
-      camPoseFinal[1][0] = new_x_unit_vec[1]
-      camPoseFinal[2][0] = new_x_unit_vec[2]
+      camPoseFinal[0][0] = newer_x_unit_vec[0]
+      camPoseFinal[1][0] = newer_x_unit_vec[1]
+      camPoseFinal[2][0] = newer_x_unit_vec[2]
       camPoseFinal[0][1] = new_y_unit_vec[0]
       camPoseFinal[1][1] = new_y_unit_vec[1]
       camPoseFinal[2][1] = new_y_unit_vec[2]
