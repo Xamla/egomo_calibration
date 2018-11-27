@@ -693,9 +693,9 @@ class Calibration_rightArm_onTorsoCams:
       print("*************************************")
       print("* EVALUATION (before optimization): *")
       print("*************************************")
-      idxValidation = idxTraining # remove after evaluation!!!
+      #idxValidation = idxTraining # remove after evaluation!!!
       self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, None, True)
-      sys.exit()
+      #sys.exit()
 
       observations = None
       jointPointIndices = None

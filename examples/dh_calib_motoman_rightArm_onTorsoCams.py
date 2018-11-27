@@ -25,9 +25,9 @@ imHeight = 1200
 intrinsic = np.zeros(shape=(3,3), dtype=np.float64)
 distCoeffs = np.zeros(shape=(5,1), dtype=np.float64) # torch.zeros(5,1)
 
-#calibration_path = "../../right_arm_data/calib_42_20_50/stereo_cams_CAMAU1639042_CAMAU1710001.npy"
+calibration_path = "../../right_arm_data/calib_42_20_50/stereo_cams_CAMAU1639042_CAMAU1710001.npy"
 #calibration_path = "../../right_arm_data/calib_after_27_21/stereo_cams_CAMAU1639042_CAMAU1710001.npy"
-calibration_path = "../../right_arm_data/calib_before_42/stereo_cams_CAMAU1639042_CAMAU1710001.npy"
+#calibration_path = "../../right_arm_data/calib_before_42/stereo_cams_CAMAU1639042_CAMAU1710001.npy"
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
 distCoeffs = stereoCalib['camLeftDistCoeffs']
@@ -37,10 +37,10 @@ print(intrinsic.dtype)
 print("distCoeffs:")
 print(distCoeffs)
 
-#hand_pattern_path = "../../right_arm_data/calib_42_20_50/HandPattern.npy"
+hand_pattern_path = "../../right_arm_data/calib_42_20_50/HandPattern.npy"
 #hand_pattern_path = "../../right_arm_data/calib_42_20_50/HandPattern_optimized_rightArm_42_20_50.npy"
 #hand_pattern_path = "../../right_arm_data/calib_after_27_21/HandPattern_optimized_rightArm_42_20_50.npy"
-hand_pattern_path = "../../right_arm_data/calib_before_42/HandPattern.npy"
+#hand_pattern_path = "../../right_arm_data/calib_before_42/HandPattern.npy"
 hand_pattern = np.load(hand_pattern_path)
 print("hand_pattern:")
 print(hand_pattern)
@@ -121,32 +121,32 @@ robotCalibration.stereoCalib = stereoCalib
 # load images (etc.) to robotCalibration
 images = []
 imagesRight = []
-#for i in range(0, 50):
-for i in range(0, 42) : #48) : #27) : #110) : #42) : #61) :
-  #image_fn = "../../right_arm_data/calib_42_20_50/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
-  #image_right_fn = "../../right_arm_data/calib_42_20_50/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
+for i in range(0, 110):
+#for i in range(0, 42) : #48) : #27) : #110) : #42) : #61) :
+  image_fn = "../../right_arm_data/calib_42_20_50/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
+  image_right_fn = "../../right_arm_data/calib_42_20_50/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
   #image_fn = "../../right_arm_data/calib_after_27/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
   #image_right_fn = "../../right_arm_data/calib_after_27/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
   #image_fn = "../../right_arm_data/calib_after_27_21/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
   #image_right_fn = "../../right_arm_data/calib_after_27_21/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
-  image_fn = "../../right_arm_data/calib_before_42/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
-  image_right_fn = "../../right_arm_data/calib_before_42/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
+  #image_fn = "../../right_arm_data/calib_before_42/capture_all/cam_CAMAU1639042_{:03d}.png".format(i+1)
+  #image_right_fn = "../../right_arm_data/calib_before_42/capture_all/cam_CAMAU1710001_{:03d}.png".format(i+1)
   image = cv.imread(image_fn)
   image_right = cv.imread(image_right_fn)
   images.append(image)
   imagesRight.append(image_right)
 
-#jsposes_fn = "../../right_arm_data/calib_42_20_50/jsposes_tensors.npy"
+jsposes_fn = "../../right_arm_data/calib_42_20_50/jsposes_tensors.npy"
 #jsposes_fn = "../../right_arm_data/calib_42_20_50/js_new.npy"
 #jsposes_fn = "../../right_arm_data/calib_after_27/jsposes_tensors.npy"
 #jsposes_fn = "../../right_arm_data/calib_after_27_21/jsposes_tensors.npy"
-jsposes_fn = "../../right_arm_data/calib_before_42/jsposes_tensors.npy"
+#jsposes_fn = "../../right_arm_data/calib_before_42/jsposes_tensors.npy"
 jsposes = np.load(jsposes_fn).item()
 #all_vals_tensors_fn = "../../right_arm_data/calib_after_27/all_vals_tensors.npy"
-all_vals_tensors_fn = "../../right_arm_data/calib_before_42/all_vals_tensors.npy"
-all_vals_tensors = np.load(all_vals_tensors_fn)
-print("all_vals_tensors[0]:")
-print(all_vals_tensors[0])
+#all_vals_tensors_fn = "../../right_arm_data/calib_before_42/all_vals_tensors.npy"
+#all_vals_tensors = np.load(all_vals_tensors_fn)
+#print("all_vals_tensors[0]:")
+#print(all_vals_tensors[0])
 #all_vals_tensors_27_fn = "../../right_arm_data/calib_after_27_21/all_vals_tensors_27.npy"
 #all_vals_tensors_21_fn = "../../right_arm_data/calib_after_27_21/all_vals_tensors_21.npy"
 #all_vals_tensors_27 = np.load(all_vals_tensors_27_fn)
@@ -155,18 +155,18 @@ print(all_vals_tensors[0])
 #print(all_vals_tensors_27[0])
 #print("all_vals_tensors_21[0]:")
 #print(all_vals_tensors_21[0])
-#all_vals_tensors_42_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_42.npy"
-#all_vals_tensors_20_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_20.npy"
-#all_vals_tensors_50_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_50.npy"
-#all_vals_tensors_42 = np.load(all_vals_tensors_42_fn)
-#all_vals_tensors_20 = np.load(all_vals_tensors_20_fn)
-#all_vals_tensors_50 = np.load(all_vals_tensors_50_fn)
-#print("all_vals_tensors_42[0]:")
-#print(all_vals_tensors_42[0]) # 1.5752789974213
-#print("all_vals_tensors_20[0]:")
-#print(all_vals_tensors_20[0]) # 1.5753470659256
-#print("all_vals_tensors_50[0]:")
-#print(all_vals_tensors_50[0]) # 1.5752619504929
+all_vals_tensors_42_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_42.npy"
+all_vals_tensors_20_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_20.npy"
+all_vals_tensors_50_fn = "../../right_arm_data/calib_42_20_50/all_vals_tensors_50.npy"
+all_vals_tensors_42 = np.load(all_vals_tensors_42_fn)
+all_vals_tensors_20 = np.load(all_vals_tensors_20_fn)
+all_vals_tensors_50 = np.load(all_vals_tensors_50_fn)
+print("all_vals_tensors_42[0]:")
+print(all_vals_tensors_42[0]) # 1.5752789974213
+print("all_vals_tensors_20[0]:")
+print(all_vals_tensors_20[0]) # 1.5753470659256
+print("all_vals_tensors_50[0]:")
+print(all_vals_tensors_50[0]) # 1.5752619504929
 robotPoses = []
 jointValues = []
 for i in range(0, len(images)):
@@ -174,26 +174,26 @@ for i in range(0, len(images)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
-  jointVals[0] = all_vals_tensors[0]
+  #jointVals[0] = all_vals_tensors[0]
   #if i in range(0, 27):
   #  jointVals[0] = all_vals_tensors_27[0]
   #elif i in range(27, len(images)):
   #  jointVals[0] = all_vals_tensors_21[0]
-  #if i in range(0, 42):
-  #  #print("First torso joint val i:")
-  #  #print("========================")
-  #  #print(i)
-  #  jointVals[0] = all_vals_tensors_42[0]
-  #elif i in range(42, 61): # only 19, because the 1st is not taken/redundant! (42+19=61)
-  #  #print("Second torso joint val i:")
-  #  #print("=========================")
-  #  #print(i)
-  #  jointVals[0] = all_vals_tensors_20[0]
-  #elif i in range(61, len(images)): # only 49, because the 1st is not taken/redundant! (61+49=110)
-  #  #print("Third torso joint val i:")
-  #  #print("========================")
-  #  #print(i)
-  #  jointVals[0] = all_vals_tensors_50[0]
+  if i in range(0, 42):
+    #print("First torso joint val i:")
+    #print("========================")
+    #print(i)
+    jointVals[0] = all_vals_tensors_42[0]
+  elif i in range(42, 61): # only 19, because the 1st is not taken/redundant! (42+19=61)
+    #print("Second torso joint val i:")
+    #print("=========================")
+    #print(i)
+    jointVals[0] = all_vals_tensors_20[0]
+  elif i in range(61, len(images)): # only 49, because the 1st is not taken/redundant! (61+49=110)
+    #print("Third torso joint val i:")
+    #print("========================")
+    #print(i)
+    jointVals[0] = all_vals_tensors_50[0]
   jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
 
