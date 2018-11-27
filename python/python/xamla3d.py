@@ -94,8 +94,8 @@ class Xamla3d:
       return True, centers
     else :
       print("Calibration pattern not found!")
-      cv.imshow("not found image", image)
-      cv.waitKey(1000)
+      #cv.imshow("not found image", image)
+      #cv.waitKey(1000)
       return False, None
 
 

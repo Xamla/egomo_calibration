@@ -13,7 +13,7 @@ setup(name='python',
       url='http://github.com/xamla',
       author='Inga Altrogge',
       author_email='inga.altrogge@xamla.com',
-      license='none',
+      license='see LICENSE file',
       packages=['python'],
       install_requires=[
           'numpy',

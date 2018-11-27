@@ -17,12 +17,12 @@ from copy import copy, deepcopy
 def main():
 
     # set default values
-    torch_calibration_path = "../../calibration_rand50/stereo_cams_4103130811_4103189394.t7"
-    python_calibration_path = "../../calibration_rand50/stereo_cams_4103130811_4103189394.npy"
-    torch_heye_path = "../../calibration_rand50/HandEye.t7"
-    python_heye_path = "../../calibration_rand50/HandEye.npy"
-    torch_jsposes_fn = "../../calibration_rand50/jsposes_tensors.t7"
-    python_jsposes_fn = "../../calibration_rand50/jsposes_tensors.npy"
+    torch_calibration_path = 'None'
+    python_calibration_path = 'None'
+    torch_heye_path = 'None'
+    python_heye_path = 'None'
+    torch_jsposes_fn = 'None'
+    python_jsposes_fn = 'None'
     torch_all_vals_tensors_fn = 'None'
     python_all_vals_tensors_fn = 'None'
 
