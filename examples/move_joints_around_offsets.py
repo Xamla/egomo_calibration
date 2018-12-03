@@ -46,22 +46,21 @@ async def main():
     values = np.zeros(shape=7, dtype=np.float64)
     for i in range(0, 7) :
       values[i] = robotModel[0][i+1]
-      #values[i] = -1.0 * values[i] # old code!
     
-    # better multiply values[i] by -joint_direction of joint[i] !!!
+    # multiply values[i] by -joint_direction of joint[i] !!!
     
     if (which_arm == "left") :
       # Left arm: joint_direction = ((1), -1, -1, -1, 1, 1, 1, 1) # (first joint_dir is for torso)
+      values[3] = -1.0 * values[3]
       values[4] = -1.0 * values[4]
       values[5] = -1.0 * values[5]
       values[6] = -1.0 * values[6]
-      values[7] = -1.0 * values[7]
 
     if (which_arm == "right") :
       # Right arm: joint_direction = ((1), 1, 1, 1, -1, -1, -1, -1) # (first joint_dir is for torso)
+      values[0] = -1.0 * values[0]
       values[1] = -1.0 * values[1]
       values[2] = -1.0 * values[2]
-      values[3] = -1.0 * values[3]
 
     print("values:")
     print(values)
