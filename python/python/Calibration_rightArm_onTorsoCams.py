@@ -774,6 +774,8 @@ class Calibration_rightArm_onTorsoCams:
       print("*********************************************")
       print("\n")
 
+      if not os.path.isdir("results_rightArm") :
+        os.mkdir("results_rightArm")
       robotModel_fn = "results_rightArm/robotModel_optimized_rightArm_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
@@ -819,6 +821,8 @@ class Calibration_rightArm_onTorsoCams:
       print("* Standard deviation of pattern points after optimization *")
       print("***********************************************************")
       variance, standard_deviation, variance_all, stdev_all, base_to_cam = self.calcStandardDeviation(robotModel, hand_pattern, points3dInLeftCamCoord, Hc)
+      avg_leftCamBase_fn = "results_rightArm/avg_leftCamBase_withOptHandPattern_rightArm_{:03d}".format(i)
+      np.save(avg_leftCamBase_fn, base_to_cam)
 
       #print("******************************************************************************")
       #print("* Show the reprojection error for all pattern points in all training images: *")
