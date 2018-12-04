@@ -479,43 +479,6 @@ class Calibration_rightArm_onTorsoCams:
 
 
   # show the reprojection error for all pattern points in all given images
-  def showReprojectionError(self, idx, robotModel, hand_pattern, base_to_target, pointsX, pointsY, target_points, intrinsics) :
-    print("********************************")
-    print("* Show the reprojection error: *")
-    print("********************************")
-
-    for j in range(0, len(idx)) :
-        tcp_pose = self.forward_kinematic(self.images[idx[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
-        camera_to_target = np.matmul(inv(np.matmul(tcp_pose, hand_pattern)), base_to_target)
-        reprojections = []
-        for k in range(0, pointsX*pointsY) :
-          in_camera = np.matmul(camera_to_target, target_points[k][0])
-          xp1 = in_camera[0]
-          yp1 = in_camera[1]
-          zp1 = in_camera[2]
-          # Scale into the image plane by distance away from camera
-          xp = 0.0
-          yp = 0.0
-          if (zp1 == 0) : # avoid divide by zero
-            xp = xp1
-            yp = yp1
-          else :
-            xp = xp1 / zp1
-            yp = yp1 / zp1
-          # Perform projection using focal length and camera optical center into image plane
-          x_image = intrinsics[0][0] * xp + intrinsics[0][2]
-          y_image = intrinsics[1][1] * yp + intrinsics[1][2]
-          reprojections.append((x_image, y_image))
-        frame = deepcopy(self.images[idx[j]]["image"])
-        for k in range(0, len(reprojections)) :
-          pt_x = int(round(reprojections[k][0]))
-          pt_y = int(round(reprojections[k][1]))
-          cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
-        cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
-        cv.waitKey(500)
-
-
-  # show the reprojection error for all pattern points in all given images
   def showReprojectionErrorExtern(self, idx, robotModel, hand_pattern, base_to_cam, pointsX, pointsY, target_points, intrinsics, number) :
     print("********************************")
     print("* Show the reprojection error: *")

@@ -28,20 +28,44 @@ intrinsic[1][1] = 4435.8500
 intrinsic[0][2] = 986.0854 # ~ imWidth / 2 = 960
 intrinsic[1][2] = 599.7553 # ~ imHeight / 2 = 600
 intrinsic[2][2] = 1.0
-distCoeffs = np.zeros(shape=(5,1), dtype=np.float64) # torch.zeros(5,1)
+distCoeffs = np.zeros(shape=(5,1), dtype=np.float64)
 distCoeffs[0] = -0.0214
 distCoeffs[1] = 0.6362
 
-calibration_path = "../../calibration_rand50/stereo_cams_4103130811_4103189394.npy"
-stereoCalib = np.load(calibration_path).item()
+calibration_path = None
+heye = None
+number_of_images = None
+left_images_path = None
+right_images_path = None
+joints_path = None
+all_joints_path = None
 
+print('Number of arguments:')
+print(len(sys.argv))
+print('Argument List:')
+print(str(sys.argv))
+if len(sys.argv) > 1:
+  calibration_path = sys.argv[1]
+if len(sys.argv) > 2:
+  heye_path = sys.argv[2]
+if len(sys.argv) > 3:
+  number_of_images = int(sys.argv[3])
+if len(sys.argv) > 4:
+  left_images_path = sys.argv[4]
+if len(sys.argv) > 5:
+  right_images_path = sys.argv[5]
+if len(sys.argv) > 6:
+  joints_path = sys.argv[6]
+if len(sys.argv) > 7:
+  all_joints_path = sys.argv[7]
+
+stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
 distCoeffs = stereoCalib['camLeftDistCoeffs']
 print("intrinsic:")
 print(intrinsic)
 print(intrinsic.dtype)
 
-heye_path = "../../calibration_rand50/HandEye.npy"
 hand_eye = np.load(heye_path)
 #hand_eye = np.identity(4, dtype=np.float64)
 #hand_eye[0:2,0:2] = np.identity(3)
@@ -67,7 +91,6 @@ def createMotomanRobotModel(theta, d, a, alpha):
   dh[2] = a
   dh[3] = alpha
 
-  # TODO: Adapt reflect = 1 for left arm to reflect = -1 for right arm!!!
   joint_direction = np.ones(8) # { 1, -1, -1, -1, 1, 1, 1, 1 }
   joint_direction[1] = -1.0
   joint_direction[2] = -1.0
@@ -89,36 +112,30 @@ alpha[4] = M_PI/2.0; alpha[5] = -M_PI/2.0; alpha[6] = M_PI/2.0
 robot_model = createMotomanRobotModel(theta, d, a, alpha)
 print("robot_model:")
 print(robot_model)
-#print(robot_model["dh"].dtype)
-#print(robot_model["joint_direction"].dtype)
 
 stereo = True
 pattern = { "width": 8, "height": 21, "circleSpacing": 0.005 }
 robotCalibration = calib(pattern, imWidth, imHeight, hand_eye, robot_model, stereo)
 robotCalibration.intrinsics = intrinsic
-robotCalibration.distCoeffs = distCoeffs # np.zeros(5,1)
+robotCalibration.distCoeffs = distCoeffs
 robotCalibration.stereoCalib = stereoCalib
 
 # load images (etc.) to robotCalibration
-images = []
+imagesLeft = []
 imagesRight = []
-for i in range(0, 50):
-#for i in range(0, 25): # 42):
-  image_fn = "../../calibration_rand50/capture_all/cam_4103130811_{:03d}.png".format(i+1)
-  image_right_fn = "../../calibration_rand50/capture_all/cam_4103189394_{:03d}.png".format(i+1)
-  image = cv.imread(image_fn)
+for i in range(0, number_of_images):
+  image_left_fn = left_images_path + "_{:03d}.png".format(i+1)
+  image_right_fn = right_images_path + "_{:03d}.png".format(i+1)
+  image_left = cv.imread(image_left_fn)
   image_right = cv.imread(image_right_fn)
-  images.append(image)
+  imagesLeft.append(image_left)
   imagesRight.append(image_right)
 
-jsposes_fn = "../../calibration_rand50/jsposes_tensors.npy"
-jsposes = np.load(jsposes_fn).item()
-all_vals_tensors_fn = "../../calibration_rand50/all_vals_tensors.npy"
-all_vals_tensors = np.load(all_vals_tensors_fn)
+jsposes = np.load(joints_path).item()
+all_vals_tensors = np.load(all_joints_path)
 robotPoses = []
 jointValues = []
-for i in range(0, len(images)):
-  #robotPose = jsposes[b'recorded_poses'][i]
+for i in range(0, len(imagesLeft)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
@@ -133,8 +150,8 @@ points = []
 pointsRight = []
 not_found = []
 patternSize = (8, 21)
-for i in range(0, len(images)):
-  found1, point = helpers.findPattern(images[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+for i in range(0, len(imagesLeft)):
+  found1, point = helpers.findPattern(imagesLeft[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
   if found1 :
     points.append(point)
   else :
@@ -160,7 +177,7 @@ print(not_found)
 # for runs in range (0, 9):
   # Scatter hand_eye:
 
-for i in range(0, len(images)):
+for i in range(0, len(imagesLeft)):
   flag = 0
   for j in range(0, len(not_found)):
     if i == not_found[j] :
@@ -168,8 +185,8 @@ for i in range(0, len(images)):
       flag = 1
   if flag == 0 :
     ok = False
-    ok = robotCalibration.addStereoImage(images[i], imagesRight[i], robotPoses[i], jointValues[i], patternId, points[i], pointsRight[i])
-    #ok = robotCalibration.addImage(images[i], robotPoses[i], jointValues[i], patternId, points[i])
+    ok = robotCalibration.addStereoImage(imagesLeft[i], imagesRight[i], robotPoses[i], jointValues[i], patternId, points[i], pointsRight[i])
+    #ok = robotCalibration.addImage(imagesLeft[i], robotPoses[i], jointValues[i], patternId, points[i])
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
 

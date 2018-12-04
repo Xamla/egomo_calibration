@@ -494,12 +494,12 @@ class Calibration:
 
 
   # show the reprojection error for all pattern points in all given images
-  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics) :
+  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number) :
     print("********************************")
     print("* Show the reprojection error: *")
     print("********************************")
 
-    for j in range(0, len(idx)) :
+    for j in range(0, number) : #len(idx)) :
         tcp_pose = self.forward_kinematic(self.images[idx[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
         camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
         reprojections = []
@@ -580,7 +580,7 @@ class Calibration:
       print("*********************************************")
       print("\n")
       variance, standard_deviation, variance_all, stdev_all, base_to_target = self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
-      self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics)
+      self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
 
 
   def DHCrossValidate(self, trainTestSplitPercentage, iterations) :
@@ -710,7 +710,9 @@ class Calibration:
       print("*********************************************")
       print("\n")
 
-      robotModel_fn = "robotModel_optimized_2ndTime_{:03d}".format(i)
+      if not os.path.isdir("results_leftArm") :
+        os.mkdir("results_leftArm")
+      robotModel_fn = "results_leftArm/robotModel_optimized_leftArm_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
 
@@ -746,7 +748,7 @@ class Calibration:
       #print(inv(handEye_original))
       #print("Optimized inverse hand-eye:")
       #print(handEyeInv)
-      handEye_fn = "handEye_optimized_2ndTime_{:03d}".format(i)
+      handEye_fn = "results_leftArm/handEye_optimized_leftArm_{:03d}".format(i)
       np.save(handEye_fn, handEye)
       self.handEye = handEye
             
@@ -758,7 +760,7 @@ class Calibration:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics)
+      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
       
     print("************************************")
     print("* EVALUATION (after optimization): *")

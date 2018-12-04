@@ -41,4 +41,4 @@ In egomo_calibration:
 * cd ../python
 * sudo python3 setup.py develop
 * cd ../examples/
-* python3 dh_calib_motoman.py
+* python3 dh_calib_motoman.py (now: ./run_dh_calib_motoman.sh)
