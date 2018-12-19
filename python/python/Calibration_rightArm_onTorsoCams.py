@@ -68,13 +68,6 @@ class Calibration_rightArm_onTorsoCams:
       poses.append(t)
       T = np.matmul(T, t)  
 
-    T[0][1] = (-1.0) * T[0][1]
-    T[1][1] = (-1.0) * T[1][1]
-    T[2][1] = (-1.0) * T[2][1]
-    T[0][2] = (-1.0) * T[0][2]
-    T[1][2] = (-1.0) * T[1][2]
-    T[2][2] = (-1.0) * T[2][2]
-
     return T #, poses
 
 
@@ -99,15 +92,6 @@ class Calibration_rightArm_onTorsoCams:
       T = np.matmul(T, t)  # T^-1 = T^-1 * t
     
     T = np.matmul(T, inv_T_init) # T^-1 = T^-1 * T_init^-1
-
-    T[1][0] = (-1.0) * T[1][0]
-    T[1][1] = (-1.0) * T[1][1]
-    T[1][2] = (-1.0) * T[1][2]
-    T[1][3] = (-1.0) * T[1][3]
-    T[2][0] = (-1.0) * T[2][0]
-    T[2][1] = (-1.0) * T[2][1]
-    T[2][2] = (-1.0) * T[2][2]
-    T[2][3] = (-1.0) * T[2][3]
 
     return T #, poses
 
@@ -545,22 +529,6 @@ class Calibration_rightArm_onTorsoCams:
       camPoseInv = inv(base_to_cam)
       if camPoseInv_optimized is not None :
         camPoseInv = deepcopy(camPoseInv_optimized)
-      #camPoseInv[0][0] = -0.99135589  
-      #camPoseInv[0][1] =  0.10403378 
-      #camPoseInv[0][2] = -0.07994046  
-      #camPoseInv[0][3] =  0.09369207
-      #camPoseInv[1][0] =  0.03046481  
-      #camPoseInv[1][1] =  0.77517718
-      #camPoseInv[1][2] =  0.6310089  
-      #camPoseInv[1][3] = -1.13051728
-      #camPoseInv[2][0] =  0.12761426  
-      #camPoseInv[2][1] =  0.62311902 
-      #camPoseInv[2][2] = -0.77164583  
-      #camPoseInv[2][3] =  1.02214513
-      #camPoseInv[3][0] =  0.0
-      #camPoseInv[3][1] =  0.0
-      #camPoseInv[3][2] =  0.0
-      #camPoseInv[3][3] =  1.0
       print("camPoseInv in \"evaluate\":")
       print(camPoseInv)
 
@@ -739,7 +707,7 @@ class Calibration_rightArm_onTorsoCams:
 
       if not os.path.isdir("results_rightArm") :
         os.mkdir("results_rightArm")
-      robotModel_fn = "results_rightArm/robotModel_optimized_rightArm_{:03d}".format(i)
+      robotModel_fn = "results_rightArm/robotModel_theta_optimized_rightArm_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
 
@@ -770,7 +738,7 @@ class Calibration_rightArm_onTorsoCams:
       print(hand_pattern_original)
       print('Optimized hand-pattern:')
       print(hand_pattern)
-      hand_pattern_fn = "results_rightArm/hand_pattern_optimized_rightArm_{:03d}".format(i)
+      hand_pattern_fn = "results_rightArm/hand_pattern_theta_optimized_rightArm_{:03d}".format(i)
       np.save(hand_pattern_fn, hand_pattern)
       self.hand_pattern = hand_pattern
 
@@ -783,7 +751,9 @@ class Calibration_rightArm_onTorsoCams:
       print("***********************************************************")
       print("* Standard deviation of pattern points after optimization *")
       print("***********************************************************")
+      # recalculate camPoseInv with optimized dh-parameters (and optimized hand_pattern)
       variance, standard_deviation, variance_all, stdev_all, base_to_cam = self.calcStandardDeviation(robotModel, hand_pattern, points3dInLeftCamCoord, Hc)
+      camPoseInv = inv(base_to_cam)
       avg_leftCamBase_fn = "results_rightArm/avg_leftCamBase_withOptHandPattern_rightArm_{:03d}".format(i)
       np.save(avg_leftCamBase_fn, base_to_cam)
 
@@ -796,7 +766,7 @@ class Calibration_rightArm_onTorsoCams:
     print("* EVALUATION (after optimization): *")
     print("************************************")
     idxValidation = idxTraining # remove after evaluation!!!
-    #camPoseInv_optimized = deepcopy(camPoseInv)
+    camPoseInv_optimized = deepcopy(camPoseInv)
     #print("camPoseInv_optimized:")
     #print(camPoseInv_optimized)
     self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, camPoseInv_optimized, True)

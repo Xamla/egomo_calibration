@@ -6,6 +6,8 @@ import cv2 as cv
 import os
 import math
 import torchfile
+import xacro
+import xml
 from matplotlib import pyplot as plt
 
 from numpy.linalg import inv
@@ -20,8 +22,8 @@ from python.xamla3d import Xamla3d
 M_PI = 3.14159265359
 helpers = Xamla3d()
 
-imWidth = 1920
-imHeight = 1200
+imWidth = 1936
+imHeight = 1216
 intrinsic = np.zeros(shape=(3,3), dtype=np.float64)
 distCoeffs = np.zeros(shape=(5,1), dtype=np.float64)
 
@@ -115,7 +117,7 @@ d[0] = 0.3; d[1] = -0.2645; d[3] = -0.36; d[5] = -0.36; d[7] = -0.175
 #theta[0] = 0.0 # left arm
 theta[0] = -M_PI # right arm
 alpha[0] = M_PI/2.0; alpha[1] = -M_PI/2.0; alpha[2] = M_PI/2.0; alpha[3] = -M_PI/2.0
-alpha[4] = M_PI/2.0; alpha[5] = -M_PI/2.0; alpha[6] = M_PI/2.0
+alpha[4] = M_PI/2.0; alpha[5] = -M_PI/2.0; alpha[6] = M_PI/2.0; alpha[7] = M_PI
 
 # optimization result:
 #theta[1] = -1.19834558e-03 #-0.00119835
@@ -188,7 +190,7 @@ for i in range(0, len(imagesLeft)):
   else :
     print("Pattern points could not be found for image {:03d}!!!".format(i))
     points.append("not found")
-  found2, point_right = helpers.findPattern(imagesRight[i], cv.CALIB_CB_ASYMMETRIC_GRID, patternSize)
+  found2, point_right = helpers.findPattern(imagesRight[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
   if found2 :
     pointsRight.append(point_right)
   else :
