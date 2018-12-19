@@ -124,7 +124,6 @@ struct SDA10dKinematicInv {
     for (int i=7; i>=0; --i) {  // calculation of inverse tcp-pose (pose_storage^-1)
       T t_storage[16];
       Mat44 t(t_storage);
-      //dh(t, joint_dir[i] * joints[i] + theta[i], d[i], a[i], alpha[i]);
       dh_inverse(t, joint_dir[i] * joints[i] + theta[i], d[i], a[i], alpha[i]);
       
       // T^-1 = identity * t7^-1 * t6^-1 * ... * t0^-1 * T_init^-1 
@@ -133,15 +132,6 @@ struct SDA10dKinematicInv {
     }
     mul(tmp, pose, inv_pose_init); // T^-1 = T^-1 * T_init^-1
     copy(pose, tmp);
-
-    pose(1,0) = (-1.0) * pose(1,0);
-    pose(1,1) = (-1.0) * pose(1,1);
-    pose(1,2) = (-1.0) * pose(1,2);
-    pose(1,3) = (-1.0) * pose(1,3);
-    pose(2,0) = (-1.0) * pose(2,0);
-    pose(2,1) = (-1.0) * pose(2,1);
-    pose(2,2) = (-1.0) * pose(2,2);
-    pose(2,3) = (-1.0) * pose(2,3);
 
     Mat44 output(output_pose);
     copy(output, pose);
@@ -236,13 +226,6 @@ struct SDA10dKinematic {
       copy(pose, tmp);
     }
 
-    pose(0,1) = (-1.0) * pose(0,1);
-    pose(1,1) = (-1.0) * pose(1,1);
-    pose(2,1) = (-1.0) * pose(2,1);
-    pose(0,2) = (-1.0) * pose(0,2);
-    pose(1,2) = (-1.0) * pose(1,2);
-    pose(2,2) = (-1.0) * pose(2,2);
-
     Mat44 output(output_pose);
     copy(output, pose);
   }
@@ -279,10 +262,12 @@ struct SnavelyReprojectionError {
     T robot_model_d_[8];
     T robot_model_a_[8];
     T robot_model_theta_[8];
+    T robot_model_alpha_[8];
     for (int i = 0; i < 8; ++i) {
       robot_model_d_[i] = robot_model_d[i];
       robot_model_a_[i] = robot_model_a[i];
       robot_model_theta_[i] = robot_model_theta[i];
+      robot_model_alpha_[i] = robot_model_alpha[i];
     }
     // optimize only shoulder_height = d[0], upper_arm_length = a[1], 
     // forearm_length = a[2] and wrist{1,2,3}_length = d[3,4,5]:
@@ -294,9 +279,23 @@ struct SnavelyReprojectionError {
     //robot_model_a_[4] = T(0);
     //robot_model_a_[5] = T(0);
 
+    // optimize only some of the dh-parameters 
+    // and keep the other fix
     robot_model_theta_[0] = T(0);
+    //---------------------------
+    //robot_model_d_[2] = T(0);
+    //robot_model_d_[4] = T(0);
+    //robot_model_d_[6] = T(0);
+    //---------------------------
+    //robot_model_a_[1] = T(0);
+    //robot_model_a_[2] = T(0);
+    //robot_model_a_[3] = T(0);
+    //robot_model_a_[4] = T(0);
+    //robot_model_a_[5] = T(0);
+    //robot_model_a_[6] = T(0);
+    //robot_model_a_[7] = T(0);
 
-    k(robot_model_theta_, robot_model_d_, robot_model_a_, robot_model_alpha, joint_state, pose_storage);
+    k(robot_model_theta_, robot_model_d_, robot_model_a_, robot_model_alpha_, joint_state, pose_storage);
     
     // transform point (= 3d pattern point in base coordinates)
     // -> to a 2d pattern point in camera coordinates:

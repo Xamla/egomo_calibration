@@ -68,13 +68,6 @@ class Calibration:
       poses.append(t)
       T = np.matmul(T, t)  
 
-    T[0][1] = (-1.0) * T[0][1]
-    T[1][1] = (-1.0) * T[1][1]
-    T[2][1] = (-1.0) * T[2][1]
-    T[0][2] = (-1.0) * T[0][2]
-    T[1][2] = (-1.0) * T[1][2]
-    T[2][2] = (-1.0) * T[2][2]
-
     return T #, poses
 
 
@@ -99,15 +92,6 @@ class Calibration:
       T = np.matmul(T, t)  # T^-1 = T^-1 * t
     
     T = np.matmul(T, inv_T_init) # T^-1 = T^-1 * T_init^-1
-
-    T[1][0] = (-1.0) * T[1][0]
-    T[1][1] = (-1.0) * T[1][1]
-    T[1][2] = (-1.0) * T[1][2]
-    T[1][3] = (-1.0) * T[1][3]
-    T[2][0] = (-1.0) * T[2][0]
-    T[2][1] = (-1.0) * T[2][1]
-    T[2][2] = (-1.0) * T[2][2]
-    T[2][3] = (-1.0) * T[2][3]
 
     return T #, poses
 
@@ -484,7 +468,10 @@ class Calibration:
     stdev_all = stdev_all * (1.0/nPoints)
 
     print("average standard deviation of all pattern points [in mm]:")
-    print(stdev_all * 1000.0)
+    stdev_all_mm = stdev_all * 1000.0
+    print(stdev_all_mm)
+    print("Length of average standard deviation [in mm]:")
+    print(norm(stdev_all_mm))
 
     base_to_target_avg = self.calc_avg_leftCamBase(handEye, Hg, Hc)
     print("base-pattern average:")
@@ -712,7 +699,7 @@ class Calibration:
 
       if not os.path.isdir("results_leftArm") :
         os.mkdir("results_leftArm")
-      robotModel_fn = "results_leftArm/robotModel_optimized_leftArm_{:03d}".format(i)
+      robotModel_fn = "results_leftArm/robotModel_theta_optimized_leftArm_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
 
@@ -748,7 +735,7 @@ class Calibration:
       #print(inv(handEye_original))
       #print("Optimized inverse hand-eye:")
       #print(handEyeInv)
-      handEye_fn = "results_leftArm/handEye_optimized_leftArm_{:03d}".format(i)
+      handEye_fn = "results_leftArm/handEye_theta_optimized_leftArm_{:03d}".format(i)
       np.save(handEye_fn, handEye)
       self.handEye = handEye
             
