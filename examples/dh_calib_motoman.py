@@ -25,14 +25,7 @@ helpers = Xamla3d()
 imWidth = 1920
 imHeight = 1200
 intrinsic = np.zeros(shape=(3,3), dtype=np.float64)
-#intrinsic[0][0] = 4435.5590
-#intrinsic[1][1] = 4435.8500
-#intrinsic[0][2] = 986.0854 # ~ imWidth / 2 = 960
-#intrinsic[1][2] = 599.7553 # ~ imHeight / 2 = 600
-#intrinsic[2][2] = 1.0
 distCoeffs = np.zeros(shape=(5,1), dtype=np.float64)
-#distCoeffs[0] = -0.0214
-#distCoeffs[1] = 0.6362
 
 calibration_path = None
 heye = None
@@ -41,6 +34,7 @@ left_images_path = None
 right_images_path = None
 joints_path = None
 all_joints_path = None
+patternId = 21
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -60,6 +54,8 @@ if len(sys.argv) > 6:
   joints_path = sys.argv[6]
 if len(sys.argv) > 7:
   all_joints_path = sys.argv[7]
+if len(sys.argv) > 8:
+  patternId = int(sys.argv[8])
 
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
@@ -67,23 +63,12 @@ distCoeffs = stereoCalib['camLeftDistCoeffs']
 print("intrinsic:")
 print(intrinsic)
 print(intrinsic.dtype)
-
 hand_eye = np.load(heye_path)
-#hand_eye = np.identity(4, dtype=np.float64)
-#hand_eye[0:2,0:2] = np.identity(3)
-#hand_eye[0][0] = -1.0
-#hand_eye[1][1] = -1.0
-#hand_eye[0][3] = -0.04
-#hand_eye[1][3] = -0.06
-#hand_eye[2][3] =  0.10
 print("hand_eye:")
 print(hand_eye)
 print(hand_eye.dtype)
-
 hand_eye_original = deepcopy(hand_eye)
 
-#torch_Hc_path = "/home/inga/Rosvita/projects/SDA10D_left_arm_onboardCams/calibration/current_20_without_12/Hc_patternToCam.t7"
-#Hc = torchfile.load(torch_Hc_path).astype(np.float64)
 
 def createMotomanRobotModel(theta, d, a, alpha):
 
@@ -92,12 +77,10 @@ def createMotomanRobotModel(theta, d, a, alpha):
   dh[1] = d
   dh[2] = a
   dh[3] = alpha
-
   joint_direction = np.ones(8) # { 1, -1, -1, -1, 1, 1, 1, 1 }
   joint_direction[1] = -1.0
   joint_direction[2] = -1.0
   joint_direction[3] = -1.0
-  
   result_table = { 'dh': dh, 'joint_direction': joint_direction }
   return result_table
 
@@ -117,23 +100,6 @@ if choice == "1" :
   a[0] = 0.09996
   alpha[0] = M_PI/2.0; alpha[1] = -M_PI/2.0; alpha[2] = M_PI/2.0; alpha[3] = -M_PI/2.0
   alpha[4] = M_PI/2.0; alpha[5] = -M_PI/2.0; alpha[6] = M_PI/2.0; alpha[7] = M_PI
-  # optimization result for theta:
-  #theta[1] =  9.76424416e-04
-  #theta[2] =  7.16013112e-04
-  #theta[3] = -1.05128473e-03
-  #theta[4] =  3.64335152e-04
-  #theta[5] = -7.02046794e-03
-  #theta[6] = -2.11033089e-04
-  #theta[7] = -2.23794931e-04
-  # optimization results from ~/code/my_python_branch/left_arm_d_opt/with_calibration_rand50 (3rd opt):
-  #d[0] = 0.300509; d[1] = -0.264205; d[3] = -0.360734; d[5] = -0.360261; d[7] = -0.178866
-  #a[0] = 0.099694
-  # optimization results from ~/code/my_python_branch/left_arm_d_opt/with_calib_before_all (3rd opt):
-  #d[0] = 0.300621; d[1] = -0.264382; d[3] = -0.360828; d[5] = -0.360263; d[7] = -0.178428
-  #a[0] = 0.0996048
-  # optimization results from ~/code/my_python_branch/left_arm_d_opt/with_calib_after_all (3rd opt):
-  #d[0] = 0.301019; d[1] = -0.264271; d[3] = -0.361697; d[5] = -0.3607; d[7] = -0.179959
-  #a[0] = 0.0990878
 elif choice == "2" :
   print("2")
   d[0] = 0.32214; d[1] = -0.253; d[2] = -0.1031; d[3] = -0.35; d[4] = 0.024
@@ -291,12 +257,9 @@ for i in range(0, len(imagesLeft)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
-  #jointVals[0] = -0.8168959021514733 # see world view
   jointVals[0] = all_vals_tensors[0]
   jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
-
-patternId = 21
 
 points = []
 pointsRight = []
@@ -315,14 +278,17 @@ for i in range(0, len(imagesLeft)):
   else :
     print("Pattern points could not be found for right image {:03d}!!!".format(i))
     pointsRight.append("not found")
-  
-  if not (found1 and found2) :
+  # Check with rectified images:
+  imgLeftRectUndist, imgRightRectUndist = helpers.rectifyImages(imagesLeft[i], imagesRight[i], stereoCalib, patternSize)
+  found3, point_left_new = helpers.findPattern(imgLeftRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+  found4, point_right_new = helpers.findPattern(imgRightRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+
+  if not (found1 and found2 and found3 and found4) :
     not_found.append(i)
 
 print("len(points):")
 print(len(points))
 print("Indices of images, in which the pattern could not be found:")
-not_found.append(47)
 print(not_found)
 
 # TODO: add scatter here!!!
