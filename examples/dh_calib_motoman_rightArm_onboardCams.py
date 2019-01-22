@@ -34,6 +34,7 @@ left_images_path = None
 right_images_path = None
 joints_path = None
 all_joints_path = None
+patternId = 21
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -53,6 +54,8 @@ if len(sys.argv) > 6:
   joints_path = sys.argv[6]
 if len(sys.argv) > 7:
   all_joints_path = sys.argv[7]
+if len(sys.argv) > 8:
+  patternId = int(sys.argv[8])
 
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
@@ -262,8 +265,6 @@ for i in range(0, len(imagesLeft)):
   jointVals[0] = all_vals_tensors[0]
   jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
-
-patternId = 22
 
 points = []
 pointsRight = []

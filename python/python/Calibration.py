@@ -376,7 +376,6 @@ class Calibration:
     points3dInLeftCamCoord = []
     for i in range(0, len(self.images)) :
       # Here, the raw left and right images are needed (not undistorted)!
-      print("i = ", i)
       result1, result2, result3, result4 = pattern_localizer.calcCamPoseViaPlaneFit(self.images[i]["image"], self.images[i]["imageRight"], "left", False)
       Hc.append(result1)
       points2dLeft.append(result2)
@@ -591,10 +590,10 @@ class Calibration:
         else :
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 255, 0))
       frames.append(frame)
-      #if my_frames is not None :
-      cv.imwrite("results_rightArm_onboard/reprojection_error_for_image_{:d}.png".format(idx[j]), frame)
-      cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
-      cv.waitKey(500)
+      if my_frames is not None :
+        #cv.imwrite("results_rightArm_onboard/reprojection_error_for_image_{:d}.png".format(idx[j]), frame)
+        cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
+        cv.waitKey(500)
     return frames
 
 
@@ -741,7 +740,7 @@ class Calibration:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      frames_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
+      frames_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining))
 
       print("******************************************************")
       print("* All in one optimization (hand-eye and dh together) *")
@@ -836,7 +835,7 @@ class Calibration:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10, frames_before)
+      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining), frames_before)
       
     print("************************************")
     print("* EVALUATION (after optimization): *")
