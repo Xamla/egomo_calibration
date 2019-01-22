@@ -32,12 +32,12 @@ class Xamla3d:
     circleFinderParams.minThreshold = 60
     circleFinderParams.maxThreshold = 230
     circleFinderParams.minRepeatability = 3
-    circleFinderParams.minDistBetweenBlobs = 1
+    circleFinderParams.minDistBetweenBlobs = 5
     circleFinderParams.filterByColor = False
     circleFinderParams.blobColor = 0
     circleFinderParams.filterByArea = True  # area of the circle in pixels
-    circleFinderParams.minArea = 200
-    circleFinderParams.maxArea = 3000
+    circleFinderParams.minArea = 300
+    circleFinderParams.maxArea = 4000
     circleFinderParams.filterByCircularity = True
     circleFinderParams.minCircularity = 0.6
     circleFinderParams.maxCircularity = 10
@@ -97,6 +97,64 @@ class Xamla3d:
       #cv.imshow("not found image", image)
       #cv.waitKey(1000)
       return False, None
+
+
+  # Rectify stereo images
+  def rectifyImages (self, imgLeft, imgRight, stereoCalibration, patternSize) :
+    leftCamMat = stereoCalibration["camLeftMatrix"]
+    rightCamMat = stereoCalibration["camRightMatrix"]
+    leftDistCoeffs = stereoCalibration["camLeftDistCoeffs"]
+    rightDistCoeffs = stereoCalibration["camRightDistCoeffs"]
+    rightLeftCamTrafo = stereoCalibration["trafoLeftToRightCam"]
+
+    camPoseFinal = np.zeros((4, 4), np.float64)
+    nPoints = patternSize[0] * patternSize[1]
+    pointsInCamCoords = np.zeros((nPoints, 3), np.float64)
+    circlesGridPointsLeft = np.zeros(shape=(nPoints, 2))
+    circlesGridPointsRight = np.zeros(shape=(nPoints, 2))
+
+    # Stereo Rectify:
+    R = rightLeftCamTrafo[:3,:3]
+    T = rightLeftCamTrafo[:3,3:4]
+    leftR = np.zeros((3, 3), np.float64)
+    rightR = np.zeros((3, 3), np.float64)
+    leftP = np.zeros((3, 4), np.float64)
+    rightP = np.zeros((3, 4), np.float64)
+    Q = np.zeros((4, 4), np.float64)
+
+    cv.stereoRectify ( cameraMatrix1 = leftCamMat.astype(np.float64),
+                       distCoeffs1 = leftDistCoeffs.astype(np.float64),
+                       cameraMatrix2 = rightCamMat.astype(np.float64),
+                       distCoeffs2 = rightDistCoeffs.astype(np.float64),
+                       imageSize = (imgLeft.shape[1], imgLeft.shape[0]),
+                       R = R.astype(np.float64),
+                       T = T.astype(np.float64),
+                       R1 = leftR,
+                       R2 = rightR,
+                       P1 = leftP,
+                       P2 = rightP,
+                       Q = Q,
+                       flags = 0 )
+
+    # Undistortion + rectification:
+    mapAImgLeft, mapBImgLeft = cv.initUndistortRectifyMap ( cameraMatrix = leftCamMat.astype(np.float64),
+                                                            distCoeffs = leftDistCoeffs.astype(np.float64),
+                                                            R = leftR,
+                                                            newCameraMatrix = leftP,
+                                                            size = (imgLeft.shape[1], imgLeft.shape[0]),
+                                                            m1type = cv.CV_32FC1 )
+    imgLeftRectUndist = cv.remap (src = imgLeft, map1 = mapAImgLeft, map2 = mapBImgLeft, interpolation = cv.INTER_NEAREST)
+
+
+    mapAImgRight, mapBImgRight = cv.initUndistortRectifyMap ( cameraMatrix = rightCamMat.astype(np.float64),
+                                                              distCoeffs = rightDistCoeffs.astype(np.float64),
+                                                              R = rightR,
+                                                              newCameraMatrix = rightP,
+                                                              size = (imgRight.shape[1], imgRight.shape[0]),
+                                                              m1type = cv.CV_32FC1 )
+    imgRightRectUndist = cv.remap (src = imgRight, map1 = mapAImgRight, map2 = mapBImgRight, interpolation = cv.INTER_NEAREST)
+
+    return imgLeftRectUndist, imgRightRectUndist
 
 
   # P is a table of 3x4 projection matrices

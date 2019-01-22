@@ -361,6 +361,100 @@ class Calibration:
       return observationT, jointpointIndices, jointStates, point3d
 
 
+  def calcCamPoseAnd3dPoints(self) :
+    # Create pattern localizer
+    pattern_localizer = PatternLocalisation()
+    pattern_localizer.circleFinderParams.minArea = 300
+    pattern_localizer.circleFinderParams.maxArea = 4000
+    pattern_localizer.setPatternIDdictionary(np.load("../python/python/patDictData.npy"))
+    pattern_localizer.setPatternData(8, 21, 0.005)
+    pattern_localizer.setStereoCalibration(self.stereoCalib)
+    # Calculate cam->pattern poses with plane fit
+    Hc = []
+    points2dLeft = []
+    points2dRight = []
+    points3dInLeftCamCoord = []
+    for i in range(0, len(self.images)) :
+      # Here, the raw left and right images are needed (not undistorted)!
+      print("i = ", i)
+      result1, result2, result3, result4 = pattern_localizer.calcCamPoseViaPlaneFit(self.images[i]["image"], self.images[i]["imageRight"], "left", False)
+      Hc.append(result1)
+      points2dLeft.append(result2)
+      points2dRight.append(result3)
+      points3dInLeftCamCoord.append(result4)
+    return points3dInLeftCamCoord, Hc
+
+
+  def prepareBAStructureWithImageIDsStereo(self, indices, points3dInLeftCamCoord) :
+
+    handEye = deepcopy(self.handEye)
+    robotModel, robotJointDir = self.robotModel["dh"], self.robotModel["joint_direction"]
+    print("Using GLOABAL robotParameters!")
+    print('Using handEye:')
+    print(handEye)
+    print('Using robotModel:')
+    print(robotModel)
+
+    print("Using ", len(indices), " stereo cameras for preparing BA Structure")
+    nPts = self.pattern["height"] * self.pattern["width"]
+    poses = []
+    observations = []
+    #point3d = np.zeros(shape=(nPts,3), dtype=np.float64)
+
+    for i in range(0, len(indices)) :
+      imageEntry = self.images[indices[i]]
+      poses.append(imageEntry['robotPose'])
+      points = imageEntry['patternPoints2d'] # angenommen, die Bilder wurden vor der Punktebestimmung rektifiziert?!
+      points_right = imageEntry['patternPoints2dRight'] # s.o.
+
+      for m in range(0, len(points)) :
+        meas = np.zeros(shape=(4,1), dtype=np.float64)
+        meas[0] = len(poses)-1   # cameraID
+        meas[1] = m              # pointID
+        meas[2] = points[m][0][0]
+        meas[3] = points[m][0][1]
+        observations.append(meas)
+
+      #for m in range(0, len(points_right)) :
+      #  meas = np.zeros(shape=(4,1), dtype=np.float64)
+      #  meas[0] = len(poses)-1
+      #  meas[1] = m
+      #  meas[2] = points_right[m][0][0]
+      #  meas[3] = points_right[m][0][1]
+      #  observations.append(meas) # Ok observations ist jetzt doppelt so lang
+
+    observationT = np.zeros(shape=(len(observations),2), dtype=np.float64) # Ok observationsT ist jetzt doppelt so lang
+    jointpointIndices = np.zeros(shape=(len(observations),2), dtype=np.int64)
+    jointStates = np.zeros(shape=(len(indices),8), dtype=np.float64)
+
+    for i in range(0, len(observations)) :
+      observationT[i, 0:2] = observations[i][2:4, 0]
+      jointpointIndices[i, 0:2] = observations[i][0:2, 0]
+
+    for i in range(0, len(indices)) :
+      jointStates[i, 0:8] = deepcopy(self.images[indices[i]]["jointStates"])
+
+    # points3d = points3dInBaseCoord = Hg * H * pointsedInLeftCamCoord
+    points3dInBaseCoord = []
+    point4dInLeftCamCoord = np.zeros(shape=4, dtype=np.float64)
+    for i in range(0, len(indices)) :
+      points3dInBaseCoord_oneImg = np.zeros(shape=(nPts, 3), dtype=np.float64)
+      for j in range(0, nPts) :
+        point4dInLeftCamCoord[0:3] = points3dInLeftCamCoord[indices[i]][j]
+        point4dInLeftCamCoord[3] = 1.0
+        point4dInBaseCoord = np.matmul(np.matmul(self.images[indices[i]]['robotPose'], handEye), point4dInLeftCamCoord)
+        points3dInBaseCoord_oneImg[j] = point4dInBaseCoord[0:3]
+      points3dInBaseCoord.append(points3dInBaseCoord_oneImg)
+
+    # make an initial guess for the 3d points by plane fit and averaging
+    points3d = points3dInBaseCoord[0]
+    for i in range(1, len(points3dInBaseCoord)) :
+      points3d += points3dInBaseCoord[i]
+    points3d = points3d * (1/len(points3dInBaseCoord))
+
+    return observationT, jointpointIndices, jointStates, points3d
+
+
   def getImageIndicesForPattern(self, patternID) :
     indices = []
     for i in range(0,len(self.images)) :
@@ -391,29 +485,6 @@ class Calibration:
     avg_LeftCamPose[0:3,3] = avg_pos
     avg_LeftCamPose[3,3] = 1.0
     return avg_LeftCamPose
-  
-
-  def calcCamPoseAnd3dPoints(self) :
-    # Create pattern localizer
-    pattern_localizer = PatternLocalisation()
-    pattern_localizer.circleFinderParams.minArea = 300
-    pattern_localizer.circleFinderParams.maxArea = 4000
-    pattern_localizer.setPatternIDdictionary(np.load("../python/python/patDictData.npy"))
-    pattern_localizer.setPatternData(8, 21, 0.005)
-    pattern_localizer.setStereoCalibration(self.stereoCalib)
-    # Calculate cam->pattern poses with plane fit
-    Hc = []
-    points2dLeft = []
-    points2dRight = []
-    points3dInLeftCamCoord = []
-    for i in range(0, len(self.images)) :
-      # Here, the raw left and right images are needed (not undistorted)!
-      result1, result2, result3, result4 = pattern_localizer.calcCamPoseViaPlaneFit(self.images[i]["image"], self.images[i]["imageRight"], "left", False)
-      Hc.append(result1)
-      points2dLeft.append(result2)
-      points2dRight.append(result3)
-      points3dInLeftCamCoord.append(result4)
-    return points3dInLeftCamCoord, Hc
   
   
   def calcStandardDeviation(self, robotModel, handEye, points3dInLeftCamCoord, Hc) :
@@ -481,40 +552,50 @@ class Calibration:
 
 
   # show the reprojection error for all pattern points in all given images
-  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number) :
+  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number, my_frames=None) :
     print("********************************")
     print("* Show the reprojection error: *")
     print("********************************")
 
+    frames = []
     for j in range(0, number) : #len(idx)) :
-        tcp_pose = self.forward_kinematic(self.images[idx[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
-        camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
-        reprojections = []
-        for k in range(0, pointsX*pointsY) :
-          in_camera = np.matmul(camera_to_target, target_points[k][0])
-          xp1 = in_camera[0]
-          yp1 = in_camera[1]
-          zp1 = in_camera[2]
-          # Scale into the image plane by distance away from camera
-          xp = 0.0
-          yp = 0.0
-          if (zp1 == 0) : # avoid divide by zero
-            xp = xp1
-            yp = yp1
-          else :
-            xp = xp1 / zp1
-            yp = yp1 / zp1
-          # Perform projection using focal length and camera optical center into image plane
-          x_image = intrinsics[0][0] * xp + intrinsics[0][2]
-          y_image = intrinsics[1][1] * yp + intrinsics[1][2]
-          reprojections.append((x_image, y_image))
-        frame = deepcopy(self.images[idx[j]]["image"])
-        for k in range(0, len(reprojections)) :
-          pt_x = int(round(reprojections[k][0]))
-          pt_y = int(round(reprojections[k][1]))
+      tcp_pose = self.forward_kinematic(self.images[idx[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
+      camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
+      reprojections = []
+      for k in range(0, pointsX*pointsY) :
+        in_camera = np.matmul(camera_to_target, target_points[k][0])
+        xp1 = in_camera[0]
+        yp1 = in_camera[1]
+        zp1 = in_camera[2]
+        # Scale into the image plane by distance away from camera
+        xp = 0.0
+        yp = 0.0
+        if (zp1 == 0) : # avoid divide by zero
+          xp = xp1
+          yp = yp1
+        else :
+          xp = xp1 / zp1
+          yp = yp1 / zp1
+        # Perform projection using focal length and camera optical center into image plane
+        x_image = intrinsics[0][0] * xp + intrinsics[0][2]
+        y_image = intrinsics[1][1] * yp + intrinsics[1][2]
+        reprojections.append((x_image, y_image))
+      frame = deepcopy(self.images[idx[j]]["image"])
+      if my_frames is not None :
+        frame = deepcopy(my_frames[j])
+      for k in range(0, len(reprojections)) :
+        pt_x = int(round(reprojections[k][0]))
+        pt_y = int(round(reprojections[k][1]))
+        if my_frames is None :
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
-        cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
-        cv.waitKey(500)
+        else :
+          cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 255, 0))
+      frames.append(frame)
+      #if my_frames is not None :
+      cv.imwrite("results_rightArm_onboard/reprojection_error_for_image_{:d}.png".format(idx[j]), frame)
+      cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
+      cv.waitKey(500)
+    return frames
 
 
   def evaluate(self, idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points) :
@@ -526,7 +607,7 @@ class Calibration:
       jointStates = None
       points3d = None
       calibrationData = None
-      observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDs(idxValidation, observations, jointPointIndices, jointStates, points3d, calibrationData)
+      observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDsStereo(idxValidation, points3dInLeftCamCoord)
 
       intrinsics = deepcopy(self.intrinsics)
       distCoeffs = deepcopy(self.distCoeffs)
@@ -567,19 +648,20 @@ class Calibration:
       print("*********************************************")
       print("\n")
       variance, standard_deviation, variance_all, stdev_all, base_to_target = self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
-      self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
+      self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxValidation))
 
 
   def DHCrossValidate(self, trainTestSplitPercentage, iterations) :
 
     validationErrors = []
     helpers = Xamla3d()
+    pattern_id = 22 # 21 # TODO: Change this!
 
     print("===========================")
     print("= Simple comparison test: =")
     print("===========================")
     robotMod = deepcopy(self.robotModel["dh"])
-    my_indices = self.getImageIndicesForPattern(21)
+    my_indices = self.getImageIndicesForPattern(pattern_id)
     print("self.images[my_indices[0]][\"robotPose\"]:")
     print(self.images[my_indices[0]]["robotPose"])
     print("self.images[my_indices[0]][\"jointStates\"]:")
@@ -597,15 +679,13 @@ class Calibration:
 
     handEye_original = deepcopy(self.handEye)
     original_robotModel = deepcopy(self.robotModel["dh"])
-    points3dInLeftCamCoord, Hc = self.calcCamPoseAnd3dPoints() # needed for calculation of standard deviation
+    points3dInLeftCamCoord, Hc = self.calcCamPoseAnd3dPoints() # needed for calculation of standard deviation and for prepareBAStructure
 
     for i in range(0, iterations) :
 
       idxForValidationPerPattern = []
 
-      #for k,v in ipairs(self.patternIDs) do
-      k = 21 # TODO: Change this!
-      idxPattern = self.getImageIndicesForPattern(k)
+      idxPattern = self.getImageIndicesForPattern(pattern_id)
       nTraining = int(math.floor(len(idxPattern) * trainTestSplitPercentage))
       print("nTraining:", nTraining)
       helpers.shuffleTable(idxPattern)
@@ -637,7 +717,7 @@ class Calibration:
       points3d = None
       calibrationData = None
 
-      observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDs(idxTraining, observations, jointPointIndices, jointStates, points3d, calibrationData)
+      observations, jointPointIndices, jointStates, points3d = self.prepareBAStructureWithImageIDsStereo(idxTraining, points3dInLeftCamCoord)
 
       intrinsics = deepcopy(self.intrinsics)
       distCoeffs = deepcopy(self.distCoeffs)
@@ -651,12 +731,17 @@ class Calibration:
       print("************************************************************")
       print("* Standard deviation of pattern points before optimization *")
       print("************************************************************")
-      self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
+      before_variance, before_standard_deviation, before_variance_all, before_stdev_all, before_base_to_target = self.calcStandardDeviation(robotModel, handEye, points3dInLeftCamCoord, Hc)
 
       jointStatesOptimized = deepcopy(jointStates)
       num_joint_states = len(jointStates)
       num_points = len(points3d)
       training_error = None
+
+      print("******************************************************************************")
+      print("* Show the reprojection error for all pattern points in all training images: *")
+      print("******************************************************************************")
+      frames_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
 
       print("******************************************************")
       print("* All in one optimization (hand-eye and dh together) *")
@@ -697,9 +782,12 @@ class Calibration:
       print("*********************************************")
       print("\n")
 
-      if not os.path.isdir("results_leftArm") :
-        os.mkdir("results_leftArm")
-      robotModel_fn = "results_leftArm/robotModel_theta_optimized_leftArm_{:03d}".format(i)
+      #if not os.path.isdir("results_leftArm") :
+      #  os.mkdir("results_leftArm")
+      #robotModel_fn = "results_leftArm/robotModel_theta_optimized_results_leftArm_onboard_{:03d}".format(i)
+      if not os.path.isdir("results_rightArm_onboard") :
+        os.mkdir("results_rightArm_onboard")
+      robotModel_fn = "results_rightArm_onboard/robotModel_theta_optimized_rightArm_onboard_{:03d}".format(i)
       np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
 
@@ -735,7 +823,8 @@ class Calibration:
       #print(inv(handEye_original))
       #print("Optimized inverse hand-eye:")
       #print(handEyeInv)
-      handEye_fn = "results_leftArm/handEye_theta_optimized_leftArm_{:03d}".format(i)
+      #handEye_fn = "results_leftArm/handEye_theta_optimized_leftArm_onboard_{:03d}".format(i)
+      handEye_fn = "results_rightArm_onboard/handEye_theta_optimized_rightArm_onboard_{:03d}".format(i)
       np.save(handEye_fn, handEye)
       self.handEye = handEye
             
@@ -747,7 +836,7 @@ class Calibration:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10)
+      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 10, frames_before)
       
     print("************************************")
     print("* EVALUATION (after optimization): *")
