@@ -142,7 +142,7 @@ class Calibration:
     return result_table
 
 
-  def __init__(self, pattern, im_width=960, im_height=720, hand_eye=None, robot_model=None, stereo=False) :
+  def __init__(self, pattern, im_width=960, im_height=720, hand_eye=None, robot_model=None, stereo=False, output_folder=None, output_robotModel_filename=None, output_handEye_filename=None) :
     self.pattern = pattern
     if self.pattern is None :
       self.pattern = { "width": 8, "height": 21, "circleSpacing": 0.005 }
@@ -176,6 +176,9 @@ class Calibration:
       
     self.images = []
     self.patternIDs = []
+    self.output_folder = output_folder
+    self.output_robotModel_filename = output_robotModel_filename
+    self.output_handEye_filename = output_handEye_filename
 
 
   def addImage(self, image, robotPose, jointState, patternId=21, points=None) :
@@ -496,8 +499,8 @@ class Calibration:
     points3dInBaseCoord = []
     nPoints = 168 # pattern_geometry[1] * pattern_geometry[2]
     for i in range(0, len(self.images)) :
-      pointsInLeftCamCoords = np.zeros(shape=4, dtype=np.float64) # torch.DoubleTensor(4)
-      pointsInBaseCoords = np.zeros(shape=(nPoints, 4), dtype=np.float64) # torch.DoubleTensor(nPoints, 4)
+      pointsInLeftCamCoords = np.zeros(shape=4, dtype=np.float64)
+      pointsInBaseCoords = np.zeros(shape=(nPoints, 4), dtype=np.float64)
       for j in range(0, nPoints) :
         pointsInLeftCamCoords[0] = points3dInLeftCamCoord[i][j][0]
         pointsInLeftCamCoords[1] = points3dInLeftCamCoord[i][j][1]
@@ -784,12 +787,16 @@ class Calibration:
       #if not os.path.isdir("results_leftArm") :
       #  os.mkdir("results_leftArm")
       #robotModel_fn = "results_leftArm/robotModel_theta_optimized_results_leftArm_onboard_{:03d}".format(i)
-      if not os.path.isdir("results_rightArm_onboard") :
-        os.mkdir("results_rightArm_onboard")
-      robotModel_fn = "results_rightArm_onboard/robotModel_theta_optimized_rightArm_onboard_{:03d}".format(i)
-      np.save(robotModel_fn, robotModel)
+      #if not os.path.isdir("results_rightArm_onboard") :
+      #  os.mkdir("results_rightArm_onboard")
+      #robotModel_fn = "results_rightArm_onboard/robotModel_theta_optimized_rightArm_onboard_{:03d}".format(i)
+      if (self.output_folder is not None) and (self.output_robotModel_filename is not None) :
+        if not os.path.isdir(self.output_folder) :
+          os.mkdir(self.output_folder)
+        robotModel_fn = os.path.join(self.output_folder, (self.output_robotModel_filename + "_{:03d}".format(i)))
+        np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
-
+        
       offset = np.zeros(shape=(4,8), dtype=np.float64)
       for j in range(0, 4) :
         for k in range(0, 8) :
@@ -823,8 +830,10 @@ class Calibration:
       #print("Optimized inverse hand-eye:")
       #print(handEyeInv)
       #handEye_fn = "results_leftArm/handEye_theta_optimized_leftArm_onboard_{:03d}".format(i)
-      handEye_fn = "results_rightArm_onboard/handEye_theta_optimized_rightArm_onboard_{:03d}".format(i)
-      np.save(handEye_fn, handEye)
+      #handEye_fn = "results_rightArm_onboard/handEye_theta_optimized_rightArm_onboard_{:03d}".format(i)
+      if self.output_handEye_filename is not None :
+        handEye_fn = os.path.join(self.output_folder, (self.output_handEye_filename + "_{:03d}".format(i)))
+        np.save(handEye_fn, handEye)
       self.handEye = handEye
             
       print("***********************************************************")

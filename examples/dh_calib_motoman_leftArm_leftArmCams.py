@@ -35,6 +35,9 @@ right_images_path = None
 joints_path = None
 all_joints_path = None
 patternId = 21
+output_folder = None
+output_robotModel_filename = None
+output_handEye_filename = None
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -56,6 +59,12 @@ if len(sys.argv) > 7:
   all_joints_path = sys.argv[7]
 if len(sys.argv) > 8:
   patternId = int(sys.argv[8])
+if len(sys.argv) > 9:
+  output_folder = sys.argv[9]
+if len(sys.argv) > 10:
+  output_robotModel_filename = sys.argv[10]
+if len(sys.argv) > 11:
+  output_handEye_filename = sys.argv[11]
 
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
@@ -232,7 +241,7 @@ print(robot_model)
 
 stereo = True
 pattern = { "width": 8, "height": 21, "circleSpacing": 0.005 }
-robotCalibration = calib(pattern, imWidth, imHeight, hand_eye, robot_model, stereo)
+robotCalibration = calib(pattern, imWidth, imHeight, hand_eye, robot_model, stereo, output_folder, output_robotModel_filename, output_handEye_filename)
 
 robotCalibration.intrinsics = intrinsic
 robotCalibration.distCoeffs = distCoeffs
