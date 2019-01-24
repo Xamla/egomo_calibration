@@ -39,6 +39,8 @@
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
 
+double math_pi = 3.14159265359;
+std::string which_arm = "left";
 
 template <typename T>
 struct SDA10dKinematicInv {
@@ -105,8 +107,18 @@ struct SDA10dKinematicInv {
     const T* const joints,
     T* output_pose
   ) {
-    T joint_dir[8] = { T(1), T(-1), T(-1), T(-1), T(1), T(1), T(1), T(1) };
-    
+    T joint_dir[8] = { T(1), T(-1), T(-1), T(-1), T(1), T(1), T(1), T(1) }; // left arm
+    if (which_arm.compare("right") == 0) { // right arm
+      joint_dir[0] = T(1);
+      joint_dir[1] = T(1);
+      joint_dir[2] = T(1);
+      joint_dir[3] = T(1);
+      joint_dir[4] = T(-1);
+      joint_dir[5] = T(-1);
+      joint_dir[6] = T(-1);
+      joint_dir[7] = T(-1);
+    }
+
     // compute forward kinematic
     T pose_storage[16];
     Mat44 pose(pose_storage);
@@ -203,8 +215,17 @@ struct SDA10dKinematic {
     const T* const joints,
     T* output_pose
   ) {
-    T joint_dir[8] = { T(1), T(-1), T(-1), T(-1), T(1), T(1), T(1), T(1) };
-    
+    T joint_dir[8] = { T(1), T(-1), T(-1), T(-1), T(1), T(1), T(1), T(1) }; // left arm
+    if (which_arm.compare("right") == 0) { // right arm
+      joint_dir[0] = T(1);
+      joint_dir[1] = T(1);
+      joint_dir[2] = T(1);
+      joint_dir[3] = T(1);
+      joint_dir[4] = T(-1);
+      joint_dir[5] = T(-1);
+      joint_dir[6] = T(-1);
+      joint_dir[7] = T(-1);
+    }
     // compute forward kinematic
     T pose_storage[16];
     Mat44 pose(pose_storage);
@@ -281,7 +302,10 @@ struct SnavelyReprojectionError {
 
     // optimize only some of the dh-parameters 
     // and keep the other fix
-    robot_model_theta_[0] = T(0);
+    robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
+    if (which_arm.compare("right") == 0) { 
+      robot_model_theta_[0] = T(math_pi); // right arm (theta for torso joint is not optimized, here.)
+    }
     //---------------------------
     //robot_model_d_[2] = T(0);
     //robot_model_d_[4] = T(0);
@@ -366,17 +390,24 @@ public:
     double *observations,
     long *jointpoint_indices,
     int num_joint_states,
-    int num_points
+    int num_points,
+    int arm
   ) :
     intrinsics(intrinsics), distortion(distortion), hand_eye(hand_eye),
     joint_states(joint_states), robot_model(robot_model),
     points(points), observations(observations), jointpoint_indices(jointpoint_indices),
-    num_joint_states(num_joint_states), num_points(num_points)
+    num_joint_states(num_joint_states), num_points(num_points), arm(arm)
   {
     std::cout << "************************" << std::endl;
     std::cout << "* Class DHCAlibration: *" << std::endl;
     std::cout << "************************" << std::endl;
 
+    //which_arm = "right";
+    if (arm == 1) {
+      which_arm = "right";
+    }
+    std::cout << "which_arm: " << which_arm << std::endl;
+    
     num_observations = num_joint_states * num_points;
     std::cout << "#Joint states: " << num_joint_states << std::endl;
     std::cout << "#Points: " << num_points << std::endl;
@@ -692,6 +723,7 @@ public:
   int num_joint_states;
   int num_points;
   int num_observations;
+  int arm;
 
   double *robot_model_data;
   double *robot_model_data_theta;
@@ -756,11 +788,12 @@ double evaluateDH(
   double *observations,
   long *jointpoint_indices,
   int num_joint_states,
-  int num_points
+  int num_points,
+  int arm
 ) {
   //google::InitGoogleLogging("/tmp");
   double evaluation_error = 0;
-  DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points);
+  DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points, arm);
   std::cout << "=========================================================" << std::endl;
   std::cout << "Call of \"calcAverageReproductionError()\" in evaluation:" << std::endl;
   std::cout << "=========================================================" << std::endl;
@@ -781,6 +814,7 @@ double optimizeDH(
   long *jointpoint_indices,
   int num_joint_states,
   int num_points,
+  int arm,
   bool optimize_hand_eye,
   bool optimize_points,
   bool optimize_robot_model_theta,
@@ -796,7 +830,7 @@ double optimizeDH(
   double err = 0;
 
   {
-    DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points);
+    DHCalibration calib(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points, arm);
     std::cout << "===============================================================" << std::endl;
     std::cout << "Call of \"calcAverageReproductionError()\" before optimization:" << std::endl;
     std::cout << "===============================================================" << std::endl;
@@ -828,7 +862,7 @@ double optimizeDH(
     std::cout << "======================================================" << std::endl;
     std::cout << "CrossCheck call of \"calcAverageReproductionError()\":" << std::endl;
     std::cout << "======================================================" << std::endl;
-    DHCalibration calib2(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points);
+    DHCalibration calib2(intrinsics, distortion, hand_eye, joint_states, robot_model, points, observations, jointpoint_indices, num_joint_states, num_points, arm);
     crossCheck = calib2.calcAverageReproductionError();
     printf("err: %f, crossCheck: %f\n", err, crossCheck);
   }

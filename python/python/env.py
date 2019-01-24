@@ -15,6 +15,7 @@ ffi.cdef("""
                            long *jointpoint_indices,
                            int num_joint_states,
                            int num_points,
+                           int arm,
                            bool optimize_hand_eye,
                            bool optimize_points,
                            bool optimize_robot_model_theta,
@@ -37,7 +38,8 @@ ffi.cdef("""
                            double *observations,
                            long *jointpoint_indices,
                            int num_joint_states,
-                           int num_points);
+                           int num_points,
+                           int arm);
 """)
 
 ffi.cdef("""

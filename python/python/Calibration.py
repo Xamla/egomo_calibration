@@ -142,7 +142,7 @@ class Calibration:
     return result_table
 
 
-  def __init__(self, pattern, im_width=960, im_height=720, hand_eye=None, robot_model=None, stereo=False, output_folder=None, output_robotModel_filename=None, output_handEye_filename=None) :
+  def __init__(self, pattern, im_width=960, im_height=720, hand_eye=None, robot_model=None, stereo=False, output_folder=None, output_robotModel_filename=None, output_handEye_filename=None, which_arm="left") :
     self.pattern = pattern
     if self.pattern is None :
       self.pattern = { "width": 8, "height": 21, "circleSpacing": 0.005 }
@@ -179,6 +179,7 @@ class Calibration:
     self.output_folder = output_folder
     self.output_robotModel_filename = output_robotModel_filename
     self.output_handEye_filename = output_handEye_filename
+    self.which_arm = which_arm
 
 
   def addImage(self, image, robotPose, jointState, patternId=21, points=None) :
@@ -634,6 +635,10 @@ class Calibration:
       observations_cdata = ffi.cast("double *", ffi.from_buffer(observations))
       jointPointIndices_cdata = ffi.cast("long *", ffi.from_buffer(jointPointIndices))
 
+      arm = 0
+      if self.which_arm == "right" :
+        arm = 1
+
       validation_error = clib.evaluateDH(
         intrinsics_cdata,
         distCoeffs_cdata,
@@ -644,7 +649,8 @@ class Calibration:
         observations_cdata,
         jointPointIndices_cdata,
         num_joint_states,
-        num_points)
+        num_points,
+        arm)
       print("*********************************************")
       print("Validation error:  ", validation_error)
       print("*********************************************")
@@ -757,6 +763,10 @@ class Calibration:
       observations_cdata = ffi.cast("double *", ffi.from_buffer(observations))
       jointPointIndices_cdata = ffi.cast("long *", ffi.from_buffer(jointPointIndices))
 
+      arm = 0
+      if self.which_arm == "right" :
+        arm = 1
+
       training_error = clib.optimizeDH(
         intrinsics_cdata,
         distCoeffs_cdata,
@@ -768,6 +778,7 @@ class Calibration:
         jointPointIndices_cdata,
         num_joint_states,
         num_points,
+        arm,
         True,      # optimize_hand_eye
         True,      # optimize_points
         True,      # optimize_robot_model_theta
