@@ -91,6 +91,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fmax-errors=3 -Wall" )
 
 set(src "${SOURCE_DIR}/bundle_adjuster.cpp")
 set(src2 "${SOURCE_DIR}/bundle_adjuster_rightArm_onTorsoCams.cpp")
+set(src3 "${SOURCE_DIR}/bundle_adjuster_v2.cpp")
 
 include_directories(
   ${Boost_INCLUDE_DIRS}
@@ -106,7 +107,7 @@ link_directories(
   #${SUITESPARSE_LIBRARY_DIRS}
 )
 
-add_library(egomo_calibration_py MODULE ${src} ${src2})
+add_library(egomo_calibration_py MODULE ${src} ${src2} ${src3})
 
 target_link_libraries(egomo_calibration_py ceres ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${SUITESPARSE_LIBRARIES} ${GLOG_LIBRARIES} ${Boost_LIBRARIES})
 
