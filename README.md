@@ -6,6 +6,7 @@ Ceres: see [ceres-sover.org](http://ceres-solver.org/installation.html)
 * download Ceres (wget http://ceres-solver.org/ceres-solver-1.14.0.tar.gz)
 * tar -xvzf ceres-solver-1.14.0.tar.gz
 * cd ceres-solver-1.14.0
+* sudo apt-get update
 * sudo apt-get install cmake
 * sudo apt-get install libgoogle-glog-dev
 * sudo apt-get install libatlas-base-dev
