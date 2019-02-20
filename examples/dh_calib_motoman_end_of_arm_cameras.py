@@ -311,33 +311,36 @@ for i in range(0, len(imagesLeft)):
   jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
 
-points = []
-pointsRight = []
+pointsLeft = [None]*len(imagesLeft)
+pointsRight = [None]*len(imagesRight)
 not_found = []
 patternSize = (8, 21)
 for i in range(0, len(imagesLeft)):
-  found1, point = helpers.findPattern(imagesLeft[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
-  if found1 :
-    points.append(point)
-  else :
-    print("Pattern points could not be found for image {:03d}!!!".format(i))
-    points.append("not found")
-  found2, point_right = helpers.findPattern(imagesRight[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
-  if found2 :
-    pointsRight.append(point_right)
-  else :
-    print("Pattern points could not be found for right image {:03d}!!!".format(i))
-    pointsRight.append("not found")
-  # Check with rectified images:
+  # First check with rectified images:
   imgLeftRectUndist, imgRightRectUndist = helpers.rectifyImages(imagesLeft[i], imagesRight[i], stereoCalib, patternSize)
-  found3, point_left_new = helpers.findPattern(imgLeftRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
-  found4, point_right_new = helpers.findPattern(imgRightRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
-
+  found1, point_left_rectified = helpers.findPattern(imgLeftRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+  if not found1 :
+    print("Pattern points could not be found for rectified left camera image {:03d}!!!".format(i))
+  found2, point_right_rectified = helpers.findPattern(imgRightRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+  if not found2 :
+    print("Pattern points could not be found for rectified right camera image {:03d}!!!".format(i))
+  # Now check with raw images:
+  if (found1 and found2) :
+    found3, point_left = helpers.findPattern(imagesLeft[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+    found4, point_right = helpers.findPattern(imagesRight[i], cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
+    if (found3 and found4) :
+      pointsLeft[i] = point_left
+      pointsRight[i] = point_right
+    if not found3 :
+      print("Pattern points could not be found for left image {:03d}!!!".format(i))
+    if not found4 :
+      print("Pattern points could not be found for right image {:03d}!!!".format(i))
   if not (found1 and found2 and found3 and found4) :
     not_found.append(i)
-
-print("len(points):")
-print(len(points))
+print("len(pointsLeft):")
+print(len(pointsLeft))
+print("len(pointsRight):")
+print(len(pointsRight))
 print("Indices of images, in which the pattern could not be found:")
 print(not_found)
 
@@ -353,7 +356,7 @@ for i in range(0, len(imagesLeft)):
       flag = 1
   if flag == 0 :
     ok = False
-    ok = robotCalibration.addStereoImage(imagesLeft[i], imagesRight[i], robotPoses[i], jointValues[i], patternId, points[i], pointsRight[i])
+    ok = robotCalibration.addStereoImage(imagesLeft[i], imagesRight[i], robotPoses[i], jointValues[i], patternId, pointsLeft[i], pointsRight[i])
     #ok = robotCalibration.addImage(imagesLeft[i], robotPoses[i], jointValues[i], patternId, points[i])
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
