@@ -361,4 +361,4 @@ for i in range(0, len(imagesLeft)):
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
 
-robotCalibration.DHCrossValidate(1.0, 1)
+robotCalibration.DHCrossValidate(0.8, 1)
