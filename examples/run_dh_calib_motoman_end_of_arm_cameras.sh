@@ -12,7 +12,7 @@
 # output folder
 # output filename for optimized robot model
 # output filename for optimized hand-eye
-# which cam ("left" or "right")
+# which arm ("left" or "right")
 
 # Joint offset optimization for theta:
 # ====================================
