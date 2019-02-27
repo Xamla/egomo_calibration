@@ -22,10 +22,15 @@ Ceres: see [ceres-sover.org](http://ceres-solver.org/installation.html)
 
 Other dependencies:
 -------------------
+* sudo apt install python-pip python3-pip
 * sudo python3 -m pip install torchfile   (pip3 install torchfile)
 * sudo python3 -m pip install matplotlib  (pip3 install matplotlib)
-* sudo apt-get install python3-tk
 * sudo python3 -m pip install cffi        (pip3 install cffi)
+* sudo apt install python3-tk
+* sudo apt install libboost-all-dev
+* sudo python3 -m pip install opencv-python
+* Installation of ROS (e.g. [ROS Melodic](http://wiki.ros.org/melodic/Installation/Ubuntu))
+  (to be able to import "xacro" to read dh-parameters from urdf)
 
 Calibration files:
 ------------------
