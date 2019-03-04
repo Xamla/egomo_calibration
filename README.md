@@ -52,4 +52,4 @@ In egomo_calibration:
 * cd ../python
 * sudo python3 setup.py develop
 * cd ../examples/
-* ./run_dh_calib_motoman_end_of_arm_cameras
+* ./run_dh_calib_motoman_end_of_arm_cameras (previously adapt paths within this file)
