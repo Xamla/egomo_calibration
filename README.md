@@ -34,9 +34,14 @@ Other dependencies:
 
 Calibration files:
 ------------------
-* From ... (TODO: choose a place for the data)
-get "calibration_rand50.tgz" and extract folder.
-* Move this folder (i.e. "calibration_rand50") into the parent directory of "egomo_calibration".
+* Run the sphere sampling in Rosvita: <br />
+  ``th ../../lua/auto_calibration/configureCalibration.lua -cfg configuration.t7`` <br />
+  -> "a Capture sphere sampling".
+* Move the resulting folder (e.g. "/home/rosvita/Rosvita/projects/\<my-project\>/calibration/capture_shpere_sampling") into e.g. the folder "/home/rosvita/code/egomo_calibration/data/right_arm/".
+* Additionally move an initial guess hand eye and stereocalibration into this folder (e.g. from "/home/rosvita/Rosvita/projects/\<my-project\>/calibration/right_arm_cameras/").
+* Convert torchfiles (jsposes_tensors.t7, all_vals_tensors.t7, HandEye.t7, stereo_cams_\<id-left\>_\<id-right\>.t7) into numpy arrays: <br />
+  ``cd /home/rosvita/code/egomo_calibration/data/right_arm/`` <br />
+  ``./run_data_conversion.sh``
 
 In egomo_calibration:
 =====================
@@ -47,4 +52,4 @@ In egomo_calibration:
 * cd ../python
 * sudo python3 setup.py develop
 * cd ../examples/
-* python3 dh_calib_motoman.py (now: ./run_dh_calib_motoman.sh)
+* ./run_dh_calib_motoman_end_of_arm_cameras
