@@ -41,7 +41,7 @@ Calibration files:
 * Additionally move an initial guess hand eye and stereocalibration into this folder (e.g. from "/home/rosvita/Rosvita/projects/\<my-project\>/calibration/right_arm_cameras/").
 * Convert torchfiles (jsposes_tensors.t7, all_vals_tensors.t7, HandEye.t7, stereo_cams_\<id-left\>_\<id-right\>.t7) into numpy arrays: <br />
   ``cd /home/rosvita/code/egomo_calibration/data/right_arm/`` <br />
-  ``./run_data_conversion.sh``
+  ``../../examples/run_data_conversion.sh``
 
 In egomo_calibration:
 =====================
