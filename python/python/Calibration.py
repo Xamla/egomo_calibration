@@ -53,7 +53,7 @@ class Calibration:
 
     T = np.identity(4)
     T[0][3] = 0.0925 # x-translation of torso-joint
-    T[2][3] = 1.06   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
+    T[2][3] = 0.9 #1.06   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
 
     # Note: Here, base is the floor ground under the robot!!!
     
@@ -77,7 +77,7 @@ class Calibration:
     T = np.identity(4)
     inv_T_init = np.identity(4)
     inv_T_init[0][3] = -0.0925
-    inv_T_init[2][3] = -1.06
+    inv_T_init[2][3] = -0.9 #-1.06
 
     # Note: Here, base is the floor ground under the robot!!!
     
@@ -663,7 +663,7 @@ class Calibration:
 
     validationErrors = []
     helpers = Xamla3d()
-    pattern_id = 22 # 21 # TODO: Change this!
+    pattern_id = 21 # TODO: Change this!
 
     print("===========================")
     print("= Simple comparison test: =")
@@ -754,6 +754,22 @@ class Calibration:
       print("******************************************************")
       print("* All in one optimization (hand-eye and dh together) *")
       print("******************************************************")
+      #print("intrinsics:")
+      #print(intrinsics)
+      #print("distCoeffs:")
+      #print(distCoeffs)
+      #print("handEyeInv:")
+      #print(handEyeInv)
+      #print("jointStatesOptimized:")
+      #print(jointStatesOptimized)
+      #print("robotModel:")
+      #print(robotModel)
+      #print("points3d:")
+      #print(points3d)
+      #print("observations:")
+      #print(observations)
+      #print("jointPointIndices:")
+      #print(jointPointIndices)
       intrinsics_cdata = ffi.cast("double *", ffi.from_buffer(intrinsics))
       distCoeffs_cdata = ffi.cast("double *", ffi.from_buffer(distCoeffs))
       handEyeInv_cdata = ffi.cast("double *", ffi.from_buffer(handEyeInv))

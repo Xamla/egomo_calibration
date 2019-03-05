@@ -38,8 +38,8 @@
 #include <vector>
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
+#include <math.h> // definition of M_PI
 
-double math_pi = 3.14159265359;
 std::string which_arm = "left";
 
 template <typename T>
@@ -127,7 +127,7 @@ struct SDA10dKinematicInv {
     Mat44 inv_pose_init(inv_pose_storage_init);
     identity(inv_pose_init);
     inv_pose_init(0,3) = T(-0.0925); // negative x-translation of torso-joint
-    inv_pose_init(2,3) = T(-1.06);   // negative z-translation of torso-joint
+    inv_pose_init(2,3) = T(-0.9); //T(-1.06);   // negative z-translation of torso-joint
 
     // Note: Here, base is the floor ground under the robot!
 
@@ -231,7 +231,7 @@ struct SDA10dKinematic {
     Mat44 pose(pose_storage);
     identity(pose);
     pose(0,3) = T(0.0925); // x-translation of torso-joint
-    pose(2,3) = T(1.06);   // z-translation of torso-joint (base->torso_joint_b1 + cell-bottom-height)
+    pose(2,3) = T(0.9); //T(1.06);   // z-translation of torso-joint (base->torso_joint_b1 + cell-bottom-height)
 
     // Note: Here, base is the floor ground under the robot!
 
@@ -304,7 +304,7 @@ struct SnavelyReprojectionError {
     // and keep the other fix
     robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
     if (which_arm.compare("right") == 0) { 
-      robot_model_theta_[0] = T(math_pi); // right arm (theta for torso joint is not optimized, here.)
+      robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
     }
     //---------------------------
     //robot_model_d_[2] = T(0);
@@ -319,8 +319,30 @@ struct SnavelyReprojectionError {
     //robot_model_a_[6] = T(0);
     //robot_model_a_[7] = T(0);
 
+    //std::cout << "robot_model_theta_ :" << std:: endl;
+    //std::cout << robot_model_theta_[0] << " " << robot_model_theta_[1] << " " << robot_model_theta_[2] << " " << robot_model_theta_[3] << std::endl;
+    //std::cout << robot_model_theta_[4] << " " << robot_model_theta_[5] << " " << robot_model_theta_[6] << " " << robot_model_theta_[7] << std::endl;
+    //std::cout << "robot_model_alpha_ :" << std:: endl;
+    //std::cout << robot_model_alpha_[0] << " " << robot_model_alpha_[1] << " " << robot_model_alpha_[2] << " " << robot_model_alpha_[3] << std::endl;
+    //std::cout << robot_model_alpha_[4] << " " << robot_model_alpha_[5] << " " << robot_model_alpha_[6] << " " << robot_model_alpha_[7] << std::endl;
+    //std::cout << "robot_model_d_ :" << std:: endl;
+    //std::cout << robot_model_d_[0] << " " << robot_model_d_[1] << " " << robot_model_d_[2] << " " << robot_model_d_[3] << std::endl;
+    //std::cout << robot_model_d_[4] << " " << robot_model_d_[5] << " " << robot_model_d_[6] << " " << robot_model_d_[7] << std::endl;
+    //std::cout << "robot_model_a_ :" << std:: endl;
+    //std::cout << robot_model_a_[0] << " " << robot_model_a_[1] << " " << robot_model_a_[2] << " " << robot_model_a_[3] << std::endl;
+    //std::cout << robot_model_a_[4] << " " << robot_model_a_[5] << " " << robot_model_a_[6] << " " << robot_model_a_[7] << std::endl;
+
     k(robot_model_theta_, robot_model_d_, robot_model_a_, robot_model_alpha_, joint_state, pose_storage);
     
+    //std::cout << "pose_storage^-1 (= Hg^-1 = TCP^-1) :" << std:: endl;
+    //std::cout << pose_storage[0] << " " << pose_storage[1] << " " << pose_storage[2] << " " << pose_storage[3] << std::endl;
+    //std::cout << pose_storage[4] << " " << pose_storage[5] << " " << pose_storage[6] << " " << pose_storage[7] << std::endl;
+    //std::cout << pose_storage[8] << " " << pose_storage[9] << " " << pose_storage[10] << " " << pose_storage[11] << std::endl;
+    //std::cout << pose_storage[12] << " " << pose_storage[13] << " " << pose_storage[14] << " " << pose_storage[15] << std::endl;
+
+    //std::cout << "current point (= 3d pattern point in base coordinates):" << std:: endl;
+    //std::cout << point[0] << " " << point[1] << " " << point[2] << std::endl;
+
     // transform point (= 3d pattern point in base coordinates)
     // -> to a 2d pattern point in camera coordinates:
     // -----------------------------------------------
@@ -330,6 +352,9 @@ struct SnavelyReprojectionError {
     p[1] = point[0] * pose_storage[4] + point[1] * pose_storage[5] + point[2] * pose_storage[6] + pose_storage[7];
     p[2] = point[0] * pose_storage[8] + point[1] * pose_storage[9] + point[2] * pose_storage[10] + pose_storage[11];
 
+    //std::cout << "TCP^-1 * 3d-pattern-point_inBaseCoord :" << std:: endl;
+    //std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
+
     // p2 = heye^-1 * p = heye^-1 * pose_storage^-1 * point
     T p2[3];
     // handEye rotation is in angle-axis-form,
@@ -338,6 +363,9 @@ struct SnavelyReprojectionError {
     p2[0] += handEye[3];
     p2[1] += handEye[4];
     p2[2] += handEye[5];
+
+    //std::cout << "heye^-1 * TCP^-1 * 3d-pattern-point_inBaseCoord :" << std:: endl;
+    //std::cout << p2[0] << " " << p2[1] << " " << p2[2] << std::endl;
 
     // Compute the center of distortion. The sign change comes from
     // the camera model that Noah Snavely's Bundler assumes, whereby
@@ -361,6 +389,14 @@ struct SnavelyReprojectionError {
     // The error is the difference between the predicted and observed position.
     residuals[0] = predicted_x - T(observed_x);
     residuals[1] = predicted_y - T(observed_y);
+
+    //std::cout << "predicted_x = " << predicted_x << std::endl;
+    //std::cout << "predicted_y = " << predicted_y << std::endl;
+    //std::cout << "observed_x = " << observed_x << std::endl;
+    //std::cout << "observed_y = " << observed_y << std::endl;
+    //std::cout << "residuals[0] = " << residuals[0] << std::endl;
+    //std::cout << "residuals[1] = " << residuals[1] << std::endl;
+    //exit(1);
 
     return true;
   }
@@ -594,10 +630,10 @@ public:
     // for standard bundle adjustment problems.
     
     ceres::Solver::Options options;
-    //options.linear_solver_type = ceres::DENSE_SCHUR;
+
     options.minimizer_progress_to_stdout = true;
     options.max_num_iterations = 100;
-    options.function_tolerance = 1e-15;  // default: 1e-6
+    options.function_tolerance = 1e-16;  // default: 1e-6
     options.parameter_tolerance = 0.0; // default: 1e-8
     options.num_threads = 8;
 
