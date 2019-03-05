@@ -30,16 +30,31 @@
 #"handEye_leftArm_2019-01-24_v2" \
 #"left"
 
+#python3 dh_calib_motoman_end_of_arm_cameras_v2.py \
+#"../data/right_arm/2019-02-05/stereo_cams_4103217455_4103235743.npy" \
+#"../data/right_arm/2019-02-05/HandEye.npy" \
+#55 \
+#"../data/right_arm/2019-02-05/capture_all/cam_4103217455" \
+#"../data/right_arm/2019-02-05/capture_all/cam_4103235743" \
+#"../data/right_arm/2019-02-05/jsposes_tensors.npy" \
+#"../data/right_arm/2019-02-05/all_vals_tensors.npy" \
+#22 \
+#"results_right_arm_v2/" \
+#"robotModel_rightArm_2019-02-05_v2" \
+#"handEye_rightArm_2019-02-05_v2" \
+#"right"
+
+
 python3 dh_calib_motoman_end_of_arm_cameras_v2.py \
-"../data/right_arm/2019-02-05/stereo_cams_4103217455_4103235743.npy" \
-"../data/right_arm/2019-02-05/HandEye.npy" \
-55 \
-"../data/right_arm/2019-02-05/capture_all/cam_4103217455" \
-"../data/right_arm/2019-02-05/capture_all/cam_4103235743" \
-"../data/right_arm/2019-02-05/jsposes_tensors.npy" \
-"../data/right_arm/2019-02-05/all_vals_tensors.npy" \
-22 \
-"results_right_arm_v2/" \
-"robotModel_rightArm_2019-02-05_v2" \
-"handEye_rightArm_2019-02-05_v2" \
-"right"
+"../data/left_arm/2019-03-05/stereo_cams_4103217457_4103217454.npy" \
+"../data/left_arm/2019-03-05/HandEye.npy" \
+100 \
+"../data/left_arm/2019-03-05/capture_all/cam_4103217457" \
+"../data/left_arm/2019-03-05/capture_all/cam_4103217454" \
+"../data/left_arm/2019-03-05/jsposes_tensors.npy" \
+"../data/left_arm/2019-03-05/all_vals_tensors.npy" \
+21 \
+"results_left_arm/" \
+"robotModel_leftArm_2019-03-05" \
+"handEye_leftArm_2019-03-05" \
+"left"

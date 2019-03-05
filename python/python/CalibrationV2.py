@@ -53,7 +53,7 @@ class CalibrationV2:
 
     T = np.identity(4)
     T[0][3] = 0.0925 # x-translation of torso-joint
-    T[2][3] = 1.06   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
+    T[2][3] = 0.9 #1.06   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
 
     # Note: Here, base is the floor ground under the robot!!!
     
@@ -77,7 +77,7 @@ class CalibrationV2:
     T = np.identity(4)
     inv_T_init = np.identity(4)
     inv_T_init[0][3] = -0.0925
-    inv_T_init[2][3] = -1.06
+    inv_T_init[2][3] = -0.9 #-1.06
 
     # Note: Here, base is the floor ground under the robot!!!
     
