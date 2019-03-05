@@ -303,6 +303,7 @@ struct SnavelyReprojectionError {
     // optimize only some of the dh-parameters 
     // and keep the other fix
     robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
+    robot_model_theta_[7] = T(0.0); // theta for t joint is not optimized, here.)
     if (which_arm.compare("right") == 0) { 
       robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
     }
