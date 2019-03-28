@@ -15,6 +15,7 @@ import os
 import math
 from numpy.linalg import inv
 from numpy.linalg import norm
+from copy import copy, deepcopy
 
 
 class PatternLocalisation:
@@ -411,6 +412,24 @@ class PatternLocalisation:
         resulting3DPoints[i][2] = resulting4DPoints[2][i] / resulting4DPoints[3][i]
         i += 1
       
+      #test_img = deepcopy(imgLeftRectUndist)
+      #for k in range(0, nPoints) :
+      #  xp = 0.0
+      #  yp = 0.0
+      #  if resulting3DPoints[k,2] == 0 :
+      #    xp = resulting3DPoints[k,0]
+      #    yp = resulting3DPoints[k,1]
+      #  else :
+      #    xp = resulting3DPoints[k,0] / resulting3DPoints[k,2]
+      #    yp = resulting3DPoints[k,1] / resulting3DPoints[k,2]
+      #  pt_x = int(round(leftP[0][0] * xp + leftP[0][2]))
+      #  pt_y = int(round(leftP[1][1] * yp + leftP[1][2]))
+      #  cv.circle(img=test_img, center=(circlesGridPointsLeft[k,0], circlesGridPointsLeft[k,1]), radius=4, color=(255, 0, 0))
+      #  cv.circle(img=test_img, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
+      #cv.imshow("imgLeftRectUndist with points2d and 3d reprojected", test_img)
+      #cv.waitKey(5000)
+      #sys.exit()
+
       if whichCam == "left" :
         i = 0
         while i < nPoints :
@@ -421,6 +440,26 @@ class PatternLocalisation:
         while i < nPoints :
           pointsInCamCoords[i] = inv(rightR).dot(resulting3DPoints[i])
           i += 1
+
+      #test_img = deepcopy(imgLeftRectUndist)
+      #my_points = deepcopy(pointsInCamCoords)
+      #for k in range(0, nPoints) :
+      #  my_points[k] = leftR.dot(my_points[k])
+      #  xp = 0.0
+      #  yp = 0.0
+      #  if my_points[k,2] == 0 :
+      #    xp = my_points[k,0]
+      #    yp = my_points[k,1]
+      #  else :
+      #    xp = my_points[k,0] / my_points[k,2]
+      #    yp = my_points[k,1] / my_points[k,2]
+      #  pt_x = int(round(leftP[0][0] * xp + leftP[0][2]))
+      #  pt_y = int(round(leftP[1][1] * yp + leftP[1][2]))
+      #  cv.circle(img=test_img, center=(circlesGridPointsLeft[k,0], circlesGridPointsLeft[k,1]), radius=4, color=(255, 0, 0))
+      #  cv.circle(img=test_img, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
+      #cv.imshow("imgLeftRectUndist with points2d and 3d reprojected", test_img)
+      #cv.waitKey(5000)
+      #sys.exit()
     
       # Generate plane through detected 3d points to get the transformation 
       # of the pattern into the coordinatesystem of the camera:
@@ -497,7 +536,7 @@ class PatternLocalisation:
       pattern_count += 1
 
     #return camPoseList, circlesGridPointsLeft, circlesGridPointsRight, pointsInCamCoords
-    return camPoseFinal, circlesGridPointsLeft, circlesGridPointsRight, pointsInCamCoords
+    return camPoseFinal, circlesGridPointsLeft, circlesGridPointsRight, pointsInCamCoords, imgLeftRectUndist, imgRightRectUndist, leftP, leftR
 
 
   def processImg(self, inputImg):

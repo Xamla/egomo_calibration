@@ -53,7 +53,7 @@ class CalibrationV2:
 
     T = np.identity(4)
     T[0][3] = 0.0925 # x-translation of torso-joint
-    T[2][3] = 0.9 #1.06   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
+    T[2][3] = 1.06 #0.9   # z-translation of torso-joint (cell_body->cell_tool0 = 0.16 + robot_base->torso_joint_b1 = 0.9)
 
     # Note: Here, base is the floor ground under the robot!!!
     
@@ -77,7 +77,7 @@ class CalibrationV2:
     T = np.identity(4)
     inv_T_init = np.identity(4)
     inv_T_init[0][3] = -0.0925
-    inv_T_init[2][3] = -0.9 #-1.06
+    inv_T_init[2][3] = -1.06 #-0.9
 
     # Note: Here, base is the floor ground under the robot!!!
     
@@ -232,11 +232,18 @@ class CalibrationV2:
     points3dInLeftCamCoord = []
     for i in range(0, len(self.images)) :
       # Here, the raw left and right images are needed (not undistorted)!
-      result1, result2, result3, result4 = pattern_localizer.calcCamPoseViaPlaneFit(self.images[i]["image"], self.images[i]["imageRight"], "left", False)
+      result1, result2, result3, result4, imgLeftRectUndist, imgRightRectUndist, leftP, leftR = pattern_localizer.calcCamPoseViaPlaneFit(self.images[i]["image"], self.images[i]["imageRight"], "left", False)
+      self.images[i]["imgLeftRectUndist"] = deepcopy(imgLeftRectUndist)
+      #self.images[i]["imgRightRectUndist"] = deepcopy(imgRightRectUndist)
       Hc.append(result1)
       points2dLeft.append(result2)
       points2dRight.append(result3)
+      self.images[i]["points2dLeft"] = deepcopy(result2)
+      #self.images[i]["points2dRight"] = deepcopy(result3)
       points3dInLeftCamCoord.append(result4)
+      self.images[i]["points3dLeft"] = deepcopy(result4)
+      self.images[i]["newLeftCamMat"] = deepcopy(leftP)
+      self.images[i]["leftR"] = deepcopy(leftR)
     return points3dInLeftCamCoord, Hc
 
 
@@ -356,50 +363,95 @@ class CalibrationV2:
 
 
   # show the reprojection error for all pattern points in all given images
-  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number, my_frames=None) :
+  def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number, my_frames=None, my_frames_rectified=None) :
     print("********************************")
     print("* Show the reprojection error: *")
     print("********************************")
 
     frames = []
+    frames_rectified = []
     for j in range(0, number) : #len(idx)) :
+    #for j in range(0, 5) :
       tcp_pose = self.forward_kinematic(self.images[idx[j]]["jointStates"], robotModel, self.robotModel["joint_direction"])     
       camera_to_target = np.matmul(inv(np.matmul(tcp_pose, handEye)), base_to_target)
       reprojections = []
+      reprojections_rectified = []
+      points3d = deepcopy(self.images[idx[j]]["points3dLeft"]) # points 3d in cam coord
+      points3d_rectified = deepcopy(points3d)
+      points3d_reprojected = []
+      points3d_reprojected_rectified = []
+      leftP = deepcopy(self.images[idx[j]]["newLeftCamMat"]) # new intrinsics after rectification
+      leftR = deepcopy(self.images[idx[j]]["leftR"]) # rectification transformation
       for k in range(0, pointsX*pointsY) :
+         # The 3d points have been unrectified after "triangulatePoints".
+         # => Thus, to display them on the rectified images they have to be rectified again!
+        points3d_rectified[k] = leftR.dot(points3d[k])
         in_camera = np.matmul(camera_to_target, target_points[k][0])
-        xp1 = in_camera[0]
-        yp1 = in_camera[1]
-        zp1 = in_camera[2]
+        in_camera_rectified = leftR.dot(in_camera[0:3])
         # Scale into the image plane by distance away from camera
-        xp = 0.0
-        yp = 0.0
-        if (zp1 == 0) : # avoid divide by zero
-          xp = xp1
-          yp = yp1
-        else :
-          xp = xp1 / zp1
-          yp = yp1 / zp1
+        xp, yp = in_camera[0], in_camera[1]
+        xpr, ypr = in_camera_rectified[0], in_camera_rectified[1]
+        p3d_x, p3d_y = points3d[k,0], points3d[k,1]
+        p3dr_x, p3dr_y = points3d_rectified[k,0], points3d_rectified[k,1]
+        if (abs(in_camera[2]) > 1e-5) : # avoid divide by zero
+          xp /= in_camera[2]
+          yp /= in_camera[2]
+        if (abs(in_camera_rectified[2]) > 1e-5) : # avoid divide by zero
+          xpr /= in_camera_rectified[2]
+          ypr /= in_camera_rectified[2]
+        if (abs(points3d[k,2]) > 1e-5) :
+          p3d_x /= points3d[k,2]
+          p3d_y /= points3d[k,2]
+        if (abs(points3d_rectified[k,2]) > 1e-5) :
+          p3dr_x /= points3d_rectified[k,2]
+          p3dr_y /= points3d_rectified[k,2]
         # Perform projection using focal length and camera optical center into image plane
-        x_image = intrinsics[0][0] * xp + intrinsics[0][2]
-        y_image = intrinsics[1][1] * yp + intrinsics[1][2]
-        reprojections.append((x_image, y_image))
+        xp_img = intrinsics[0][0] * xp + intrinsics[0][2]
+        yp_img = intrinsics[1][1] * yp + intrinsics[1][2]
+        xpr_img = leftP[0][0] * xpr + leftP[0][2]
+        ypr_img = leftP[1][1] * ypr + leftP[1][2]
+        reprojections.append((xp_img, yp_img))
+        reprojections_rectified.append((xpr_img, ypr_img))
+        p3d_x_img = intrinsics[0][0] * p3d_x + intrinsics[0][2]
+        p3d_y_img = intrinsics[1][1] * p3d_y + intrinsics[1][2]
+        p3dr_x_img = leftP[0][0] * p3dr_x + leftP[0][2]
+        p3dr_y_img = leftP[1][1] * p3dr_y + leftP[1][2]
+        points3d_reprojected.append((p3d_x_img, p3d_y_img))
+        points3d_reprojected_rectified.append((p3dr_x_img, p3dr_y_img))
       frame = deepcopy(self.images[idx[j]]["image"])
+      frame_rectified = deepcopy(self.images[idx[j]]["imgLeftRectUndist"])
+      points2d = deepcopy(self.images[idx[j]]["points2dLeft"])
       if my_frames is not None :
         frame = deepcopy(my_frames[j])
+        frame_rectified = deepcopy(my_frames_rectified[j])
       for k in range(0, len(reprojections)) :
         pt_x = int(round(reprojections[k][0]))
         pt_y = int(round(reprojections[k][1]))
+        ptr_x = int(round(reprojections_rectified[k][0]))
+        ptr_y = int(round(reprojections_rectified[k][1]))
+        p3d_pt_x = int(round(points3d_reprojected[k][0]))
+        p3d_pt_y = int(round(points3d_reprojected[k][1]))
+        p3dr_pt_x = int(round(points3d_reprojected_rectified[k][0]))
+        p3dr_pt_y = int(round(points3d_reprojected_rectified[k][1]))
         if my_frames is None :
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 0, 255))
+          cv.circle(img=frame_rectified, center=(ptr_x, ptr_y), radius=4, color=(0, 0, 255))
         else :
           cv.circle(img=frame, center=(pt_x, pt_y), radius=4, color=(0, 255, 0))
+          cv.circle(img=frame, center=(p3d_pt_x, p3d_pt_y), radius=4, color=(255, 0, 0))
+          #cv.circle(img=frame_rectified, center=(points2d[k,0], points2d[k,1]), radius=4, color=(255, 0, 0))
+          cv.circle(img=frame_rectified, center=(ptr_x, ptr_y), radius=4, color=(0, 255, 0))
+          cv.circle(img=frame_rectified, center=(p3dr_pt_x, p3dr_pt_y), radius=4, color=(255, 0, 0))
       frames.append(frame)
+      frames_rectified.append(frame_rectified)
       if my_frames is not None :
-        #cv.imwrite("results_rightArm_onboard/reprojection_error_for_image_{:d}.png".format(idx[j]), frame)
         cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
         cv.waitKey(500)
-    return frames
+        cv.imshow("reprojection error on rectified image {:d}".format(idx[j]), frame_rectified)
+        cv.waitKey(500)
+        cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_img_{:d}.png".format(idx[j]), frame)
+        cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_rectified_img_{:d}.png".format(idx[j]), frame_rectified)
+    return frames, frames_rectified
 
 
   def evaluate(self, idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points) :
@@ -532,7 +584,7 @@ class CalibrationV2:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      frames_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining))
+      frames_before, frames_rectified_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining))
 
       print("******************************************************")
       print("* All in one optimization (hand-eye and dh together) *")
@@ -548,28 +600,53 @@ class CalibrationV2:
       if self.which_arm == "right" :
         arm = 1
 
-      training_error = clib.optimizeDHV2(
-        handEye_cdata,
-        jointStatesPred_cdata,
-        jointStatesObs_cdata,
-        robotModel_cdata,
-        points3dPred_cdata,
-        points3dObs_cdata,
-        num_joint_states,
-        num_points,
-        arm,
-        True,      # optimize_hand_eye
-        True,      # optimize_points
-        True,      # optimize_robot_model_theta
-        False,     # optimize_robot_model_d
-        False,     # optimize_robot_model_a
-        False,     # optimize_robot_model_alpha
-        False      # optimize_joint_states
-      )
-      print("*********************************************")
-      print("Error after (hand-eye and dh) optimization:  ", training_error)
-      print("*********************************************")
-      print("\n")
+      if i % 2 == 0 : # even (i=0,2,4,...)
+        training_error = clib.optimizeDHV2(
+          handEye_cdata,
+          jointStatesPred_cdata,
+          jointStatesObs_cdata,
+          robotModel_cdata,
+          points3dPred_cdata,
+          points3dObs_cdata,
+          num_joint_states,
+          num_points,
+          arm,
+          False,     # optimize_hand_eye
+          False,     # optimize_points
+          True,      # optimize_robot_model_theta
+          True,      # optimize_robot_model_d
+          False,     # optimize_robot_model_a
+          False,     # optimize_robot_model_alpha
+          False      # optimize_joint_states
+        )
+        print("*********************************************")
+        print("Error after (hand-eye and dh) optimization:  ", training_error)
+        print("*********************************************")
+        print("\n")
+      else : # odd (i=1,3,5,...)
+        training_error = clib.optimizeDHV2(
+          handEye_cdata,
+          jointStatesPred_cdata,
+          jointStatesObs_cdata,
+          robotModel_cdata,
+          points3dPred_cdata,
+          points3dObs_cdata,
+          num_joint_states,
+          num_points,
+          arm,
+          True,      # optimize_hand_eye
+          False,     # optimize_points
+          False,     # optimize_robot_model_theta
+          False,     # optimize_robot_model_d
+          False,     # optimize_robot_model_a
+          False,     # optimize_robot_model_alpha
+          False      # optimize_joint_states
+        )
+        print("*********************************************")
+        print("Error after (hand-eye and dh) optimization:  ", training_error)
+        print("*********************************************")
+        print("\n")
+
       if (self.output_folder is not None) and (self.output_robotModel_filename is not None) :
         if not os.path.isdir(self.output_folder) :
           os.mkdir(self.output_folder)
@@ -617,7 +694,7 @@ class CalibrationV2:
       print("******************************************************************************")
       print("* Show the reprojection error for all pattern points in all training images: *")
       print("******************************************************************************")
-      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining), frames_before)
+      self.showReprojectionError(idxTraining, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, 5, frames_before, frames_rectified_before) #len(idxTraining), frames_before)
       
     print("************************************")
     print("* EVALUATION (after optimization): *")

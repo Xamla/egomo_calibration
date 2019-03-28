@@ -127,7 +127,7 @@ struct SDA10dKineInv {
     Mat44 inv_pose_init(inv_pose_storage_init);
     identity(inv_pose_init);
     inv_pose_init(0,3) = T(-0.0925); // negative x-translation of torso-joint
-    inv_pose_init(2,3) = T(-0.9); //T(-1.06);   // negative z-translation of torso-joint
+    inv_pose_init(2,3) = T(-1.06); //T(-0.9);   // negative z-translation of torso-joint
 
     // Note: Here, base is the floor ground under the robot!
 
@@ -231,7 +231,7 @@ struct SDA10dKine {
     Mat44 pose(pose_storage);
     identity(pose);
     pose(0,3) = T(0.0925); // x-translation of torso-joint
-    pose(2,3) = T(0.9); //T(1.06);   // z-translation of torso-joint (base->torso_joint_b1 + cell-bottom-height)
+    pose(2,3) = T(1.06); //T(0.9);   // z-translation of torso-joint (base->torso_joint_b1 + cell-bottom-height)
 
     // Note: Here, base is the floor ground under the robot!
 
@@ -299,10 +299,10 @@ struct SnavelyReprojection {
 
     // optimize only some of the dh-parameters 
     // and keep the other fix
-    robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
-    if (arm_choice.compare("right") == 0) { 
-      robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
-    }
+    //robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
+    //if (arm_choice.compare("right") == 0) {
+    //  robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
+    //}
 
     /*
     std::cout << "robot_model_theta_ :" << std:: endl;
@@ -595,7 +595,7 @@ public:
 
     options.minimizer_progress_to_stdout = true;
     options.max_num_iterations = 100;
-    options.function_tolerance = 1e-16;  // default: 1e-6
+    options.function_tolerance = 1e-7; // 1e-7 is enough!!! //default: 1e-6
     options.parameter_tolerance = 0.0; // default: 1e-8
     options.num_threads = 8;
 

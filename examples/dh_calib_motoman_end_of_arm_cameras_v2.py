@@ -307,8 +307,9 @@ for i in range(0, len(imagesLeft)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
-  jointVals[0] = all_vals_tensors[0]
-  jointVals[1:8] = jsposes['recorded_joint_values'][i]
+  #jointVals[0] = all_vals_tensors[0]
+  #jointVals[1:8] = jsposes['recorded_joint_values'][i]
+  jointVals[0:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
 
 pointsLeft = [None]*len(imagesLeft)
@@ -353,4 +354,4 @@ for i in range(0, len(imagesLeft)):
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
 
-robotCalibration.DHCrossValidate(0.8, 1)
+robotCalibration.DHCrossValidate(1.0, 10)
