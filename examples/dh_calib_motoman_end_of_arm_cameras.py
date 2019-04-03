@@ -14,6 +14,7 @@ from numpy.linalg import inv
 from numpy.linalg import norm
 
 from copy import copy, deepcopy
+import random
 
 import python.pattern_localisation as pattern_localisation
 import python.Calibration as calib
@@ -45,6 +46,7 @@ train_test_split_percentage = 1.0
 with_torso_movement_in_data = False
 with_torso_optimization = False # makes only sense, if with_torso_movement_in_data is True
 evaluate_only = False
+with_jitter = False
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -86,6 +88,8 @@ if len(sys.argv) > 17:
   with_torso_optimization = eval(sys.argv[17])
 if len(sys.argv) > 18:
   evaluate_only = eval(sys.argv[18])
+if len(sys.argv) > 19:
+  with_jitter = eval(sys.argv[19])
 
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
@@ -294,6 +298,14 @@ print("a = ", a)
 print("alpha = ", alpha)
 print("theta = ", theta)
 
+# Addition of random jitter to the theta start values:
+if with_jitter :
+  for i in range(0, 8) :
+    r = random.uniform(-1,1)  # random number in ]-1;1[
+    jitter = r * (math.pi/36.0)  # jitter in ]-5°;+5°[ = ]-M_PI/36;+M_PI/36[
+    theta[i] += jitter
+  print("theta with jitter = ", theta)
+
 robot_model = createMotomanRobotModel(theta, d, a, alpha, which_arm)
 print("robot_model:")
 print(robot_model)
@@ -364,10 +376,6 @@ print("len(pointsRight):")
 print(len(pointsRight))
 print("Indices of images, in which the pattern could not be found:")
 print(not_found)
-
-# TODO: add scatter here!!!
-# for runs in range (0, 9):
-  # Scatter hand_eye:
 
 for i in range(0, len(imagesLeft)):
   flag = 0

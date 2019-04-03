@@ -19,6 +19,7 @@
 # with torso movement in the data?
 # with optimization of torso joint?
 # only evaluation?
+# with jitter on theta start value?
 
 # Joint offset optimization for theta:
 # ====================================
@@ -42,4 +43,6 @@ python3 dh_calib_motoman_end_of_arm_cameras.py \
 "True" \
 "True" \
 "False" \
+"False"
+
 

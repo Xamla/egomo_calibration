@@ -19,6 +19,7 @@
 # with torso movement in the data?
 # with optimization of torso joint?
 # only evaluation?
+# with jitter on theta start value?
 
 # Joint offset optimization for theta:
 # ====================================
@@ -33,13 +34,36 @@ python3 dh_calib_motoman_end_of_arm_cameras_v2.py \
 "../data/left_arm/2019-03-26_back/all_vals_tensors.npy" \
 20 \
 "results_left_arm/pattern_in_back_150/" \
-"robotModel_v2_alternating_kalibr_corrected_ordering_CHECK" \
-"handEye_v2_alternating_kalibr_corrected_ordering_CHECK" \
+"robotModel_v2_simultaneous_opt_kalibr_jitter" \
+"handEye_v2_simultaneous_opt_kalibr_jitter" \
 "left" \
-"True" \
-4 \
+"False" \
+1 \
 1.0 \
 "True" \
 "True" \
 "False" \
+"True"
+
+#python3 dh_calib_motoman_end_of_arm_cameras_v2.py \
+#"../data/left_arm/2019-03-26_front/stereo_cams_4103189394_4103130811_kalibr_corrected_ordering.npy" \
+#"../data/left_arm/2019-03-26_front/HandEye_kalibr_corrected_ordering.npy" \
+#140 \
+#"../data/left_arm/2019-03-26_front/capture_all/cam_4103189394" \
+#"../data/left_arm/2019-03-26_front/capture_all/cam_4103130811" \
+#"../data/left_arm/2019-03-26_front/jsposes_tensors.npy" \
+#"../data/left_arm/2019-03-26_front/all_vals_tensors.npy" \
+#20 \
+#"results_left_arm/pattern_in_front_140/" \
+#"robotModel_v2_simultaneous_opt_kalibr" \
+#"handEye_v2_simultaneous_opt_kalibr" \
+#"left" \
+#"False" \
+#1 \
+#1.0 \
+#"True" \
+#"True" \
+#"False" \
+#"False"
+
 
