@@ -18,11 +18,11 @@ extern "C" {
 
   double evaluateDHV2(double *hand_eye, double *joint_states_pred, double *joint_states_obs,
                       double *robot_model, double *points_pred, double *points_obs,
-                      int num_joint_states, int num_points, int arm);
+                      int num_joint_states, int num_points, int arm, bool with_torso_optimization);
 
   double optimizeDHV2(double *hand_eye, double *joint_states_pred, double *joint_states_obs,
                       double *robot_model, double *points_pred, double *points_obs,
-                      int num_joint_states, int num_points, int arm,
+                      int num_joint_states, int num_points, int arm, bool with_torso_optimization,
                       bool optimize_hand_eye, bool optimize_points, bool optimize_robot_model_theta,
                       bool optimize_robot_model_d, bool optimize_robot_model_a, bool optimize_robot_model_alpha,
                       bool optimize_joint_states);

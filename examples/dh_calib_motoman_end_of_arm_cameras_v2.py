@@ -39,6 +39,12 @@ output_folder = None
 output_robotModel_filename = None
 output_handEye_filename = None
 which_arm = None
+alternate = False
+runs = 1
+train_test_split_percentage = 1.0
+with_torso_movement_in_data = False
+with_torso_optimization = False # makes only sense, if with_torso_movement_in_data is True
+evaluate_only = False
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -68,6 +74,18 @@ if len(sys.argv) > 11:
   output_handEye_filename = sys.argv[11]
 if len(sys.argv) > 12:
   which_arm = sys.argv[12]
+if len(sys.argv) > 13:
+  alternate = eval(sys.argv[13])
+if len(sys.argv) > 14:
+  runs = int(sys.argv[14])
+if len(sys.argv) > 15:
+  train_test_split_percentage = float(sys.argv[15])
+if len(sys.argv) > 16:
+  with_torso_movement_in_data = eval(sys.argv[16])
+if len(sys.argv) > 17:
+  with_torso_optimization = eval(sys.argv[17])
+if len(sys.argv) > 18:
+  evaluate_only = eval(sys.argv[18])
 
 stereoCalib = np.load(calibration_path).item()
 intrinsic = stereoCalib['camLeftMatrix']
@@ -307,9 +325,11 @@ for i in range(0, len(imagesLeft)):
   robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
-  #jointVals[0] = all_vals_tensors[0]
-  #jointVals[1:8] = jsposes['recorded_joint_values'][i]
-  jointVals[0:8] = jsposes['recorded_joint_values'][i]
+  if with_torso_movement_in_data :
+    jointVals[0:8] = jsposes['recorded_joint_values'][i]
+  else :
+    jointVals[0] = all_vals_tensors[0]
+    jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
 
 pointsLeft = [None]*len(imagesLeft)
@@ -354,4 +374,4 @@ for i in range(0, len(imagesLeft)):
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
 
-robotCalibration.DHCrossValidate(1.0, 10)
+robotCalibration.DHCrossValidate(train_test_split_percentage, runs, alternate, with_torso_optimization, evaluate_only)

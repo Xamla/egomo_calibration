@@ -449,12 +449,12 @@ class CalibrationV2:
         cv.waitKey(500)
         cv.imshow("reprojection error on rectified image {:d}".format(idx[j]), frame_rectified)
         cv.waitKey(500)
-        cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_img_{:d}.png".format(idx[j]), frame)
-        cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_rectified_img_{:d}.png".format(idx[j]), frame_rectified)
+        #cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_img_{:d}.png".format(idx[j]), frame)
+        #cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs/reprojection_error_rectified_img_{:d}.png".format(idx[j]), frame_rectified)
     return frames, frames_rectified
 
 
-  def evaluate(self, idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points) :
+  def evaluate(self, idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, with_torso_optimization=False) :
     print("idxValidation:")
     print(idxValidation)
     if (len(idxValidation) > 0) :
@@ -491,7 +491,8 @@ class CalibrationV2:
         points3dObs_cdata,
         num_joint_states,
         num_points,
-        arm)
+        arm,
+        with_torso_optimization)
       print("*********************************************")
       print("Validation error:  ", validation_error)
       print("*********************************************")
@@ -500,7 +501,7 @@ class CalibrationV2:
       self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxValidation))
 
 
-  def DHCrossValidate(self, trainTestSplitPercentage, iterations) :
+  def DHCrossValidate(self, trainTestSplitPercentage, iterations, alternate=False, with_torso_optimization=False, evaluate_only=False) :
 
     validationErrors = []
     helpers = Xamla3d()
@@ -558,9 +559,12 @@ class CalibrationV2:
       print("*************************************")
       print("* EVALUATION (before optimization): *")
       print("*************************************")
-      #idxValidation = idxTraining # remove after evaluation!!!
-      self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points)
-      #sys.exit()
+      if evaluate_only :
+        idxValidation = idxTraining
+        self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, with_torso_optimization)
+        sys.exit()
+      else :
+        self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, with_torso_optimization)
 
       jointStates, points3d = self.prepareBAStructureWithImageIDsStereo(idxTraining, points3dInLeftCamCoord)
 
@@ -600,7 +604,56 @@ class CalibrationV2:
       if self.which_arm == "right" :
         arm = 1
 
-      if i % 2 == 0 : # even (i=0,2,4,...)
+      if alternate : # Alternating optimiation (theta, hand-eye, theta, hand-eye, ...)
+        if i % 2 == 0 : # even (i=0,2,4,...)
+          training_error = clib.optimizeDHV2(
+            handEye_cdata,
+            jointStatesPred_cdata,
+            jointStatesObs_cdata,
+            robotModel_cdata,
+            points3dPred_cdata,
+            points3dObs_cdata,
+            num_joint_states,
+            num_points,
+            arm,
+            with_torso_optimization,
+            False,     # optimize_hand_eye
+            False,     # optimize_points
+            True,      # optimize_robot_model_theta
+            False,     # optimize_robot_model_d
+            False,     # optimize_robot_model_a
+            False,     # optimize_robot_model_alpha
+            False      # optimize_joint_states
+          )
+          print("*********************************************")
+          print("Error after (hand-eye and dh) optimization:  ", training_error)
+          print("*********************************************")
+          print("\n")
+        else : # odd (i=1,3,5,...)
+          training_error = clib.optimizeDHV2(
+            handEye_cdata,
+            jointStatesPred_cdata,
+            jointStatesObs_cdata,
+            robotModel_cdata,
+            points3dPred_cdata,
+            points3dObs_cdata,
+            num_joint_states,
+            num_points,
+            arm,
+            with_torso_optimization,
+            True,      # optimize_hand_eye
+            False,     # optimize_points
+            False,     # optimize_robot_model_theta
+            False,     # optimize_robot_model_d
+            False,     # optimize_robot_model_a
+            False,     # optimize_robot_model_alpha
+            False      # optimize_joint_states
+          )
+          print("*********************************************")
+          print("Error after (hand-eye and dh) optimization:  ", training_error)
+          print("*********************************************")
+          print("\n")
+      else : # Simultaneous optimization of DH-parameters and hand-eye
         training_error = clib.optimizeDHV2(
           handEye_cdata,
           jointStatesPred_cdata,
@@ -611,32 +664,10 @@ class CalibrationV2:
           num_joint_states,
           num_points,
           arm,
-          False,     # optimize_hand_eye
-          False,     # optimize_points
-          True,      # optimize_robot_model_theta
-          True,      # optimize_robot_model_d
-          False,     # optimize_robot_model_a
-          False,     # optimize_robot_model_alpha
-          False      # optimize_joint_states
-        )
-        print("*********************************************")
-        print("Error after (hand-eye and dh) optimization:  ", training_error)
-        print("*********************************************")
-        print("\n")
-      else : # odd (i=1,3,5,...)
-        training_error = clib.optimizeDHV2(
-          handEye_cdata,
-          jointStatesPred_cdata,
-          jointStatesObs_cdata,
-          robotModel_cdata,
-          points3dPred_cdata,
-          points3dObs_cdata,
-          num_joint_states,
-          num_points,
-          arm,
+          with_torso_optimization,
           True,      # optimize_hand_eye
-          False,     # optimize_points
-          False,     # optimize_robot_model_theta
+          True,      # optimize_points
+          True,      # optimize_robot_model_theta
           False,     # optimize_robot_model_d
           False,     # optimize_robot_model_a
           False,     # optimize_robot_model_alpha
@@ -699,5 +730,5 @@ class CalibrationV2:
     print("************************************")
     print("* EVALUATION (after optimization): *")
     print("************************************")
-    self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points)
+    self.evaluate(idxValidation, points3dInLeftCamCoord, Hc, pointsX, pointsY, target_points, with_torso_optimization)
     

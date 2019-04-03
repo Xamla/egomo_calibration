@@ -41,6 +41,8 @@
 #include <math.h> // definition of M_PI
 
 std::string arm_choice = "left";
+bool torso_optimization = false;
+
 
 template <typename T>
 struct SDA10dKineInv {
@@ -297,12 +299,14 @@ struct SnavelyReprojection {
       robot_model_alpha_[i] = robot_model_alpha[i];
     }
 
-    // optimize only some of the dh-parameters 
-    // and keep the other fix
-    //robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
-    //if (arm_choice.compare("right") == 0) {
-    //  robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
-    //}
+    // optimize only some of the dh-parameters and keep the other fix
+    if (!torso_optimization) {
+      robot_model_theta_[0] = T(0.0); // left arm (theta for torso joint is not optimized, here.)
+      if (arm_choice.compare("right") == 0) {
+        robot_model_theta_[0] = T(M_PI); // right arm (theta for torso joint is not optimized, here.)
+      }
+    }
+    //robot_model_theta_[7] = T(0.0); // theta for t joint is not optimized, here.
 
     /*
     std::cout << "robot_model_theta_ :" << std:: endl;
@@ -416,7 +420,8 @@ public:
     double *points_obs,
     int num_joint_states, // number of images
     int num_points, // number of points per pattern (e.g. 168)
-    int arm
+    int arm,
+    bool with_torso_optimization
   ) :
     hand_eye(hand_eye), joint_states_pred(joint_states_pred), joint_states_obs(joint_states_obs), 
     robot_model(robot_model), points_pred(points_pred), points_obs(points_obs), 
@@ -431,6 +436,10 @@ public:
       arm_choice = "right";
     }
     std::cout << "arm_choice: " << arm_choice << std::endl;
+    if (with_torso_optimization) {
+      torso_optimization = true;
+    }
+    std::cout << "torso_optimization: " << torso_optimization << std::endl;
     
     //num_observations = num_joint_states * num_points;
     std::cout << "# Stereo-Images: " << num_joint_states << std::endl;
@@ -762,11 +771,12 @@ double evaluateDHV2(
   double *points_obs,
   int num_joint_states,
   int num_points,
-  int arm
+  int arm,
+  bool with_torso_optimization
 ) {
   //google::InitGoogleLogging("/tmp");
   double evaluation_error = 0;
-  DHCalibrationV2 calib(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm);
+  DHCalibrationV2 calib(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm, with_torso_optimization);
   std::cout << "=========================================================" << std::endl;
   std::cout << "Call of \"calcAverageReproductionError()\" in evaluation:" << std::endl;
   std::cout << "=========================================================" << std::endl;
@@ -786,6 +796,7 @@ double optimizeDHV2(
   int num_joint_states,
   int num_points,
   int arm,
+  bool with_torso_optimization,
   bool optimize_hand_eye,
   bool optimize_points,
   bool optimize_robot_model_theta,
@@ -798,7 +809,7 @@ double optimizeDHV2(
   double err = 0;
 
   {
-    DHCalibrationV2 calib(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm);
+    DHCalibrationV2 calib(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm, with_torso_optimization);
     std::cout << "===============================================================" << std::endl;
     std::cout << "Call of \"calcAverageReproductionError()\" before optimization:" << std::endl;
     std::cout << "===============================================================" << std::endl;
@@ -827,7 +838,7 @@ double optimizeDHV2(
     std::cout << "======================================================" << std::endl;
     std::cout << "CrossCheck call of \"calcAverageReproductionError()\":" << std::endl;
     std::cout << "======================================================" << std::endl;
-    DHCalibrationV2 calib2(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm);
+    DHCalibrationV2 calib2(hand_eye, joint_states_pred, joint_states_obs, robot_model, points_pred, points_obs, num_joint_states, num_points, arm, with_torso_optimization);
     crossCheck = calib2.calcAverageReproductionError();
     printf("err: %f, crossCheck: %f\n", err, crossCheck);
   }
