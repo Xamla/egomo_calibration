@@ -305,6 +305,9 @@ if with_jitter :
     jitter = r * (math.pi/36.0)  # jitter in ]-5°;+5°[ = ]-M_PI/36;+M_PI/36[
     theta[i] += jitter
   print("theta with jitter = ", theta)
+  print("theta with jitter [in degrees]:")
+  for i in range(0, 8) :
+    print(theta[i] * 180.0/math.pi)
 
 robot_model = createMotomanRobotModel(theta, d, a, alpha, which_arm)
 print("robot_model:")
