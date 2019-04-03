@@ -13,33 +13,33 @@
 # output filename for optimized robot model
 # output filename for optimized hand-eye
 # which arm ("left" or "right")
+# alternating optimization (hand-eye, DH, hand-eye, DH, ...)?
+# number of runs
+# train-test split percentage
+# with torso movement in the data?
+# with optimization of torso joint?
+# only evaluation?
 
 # Joint offset optimization for theta:
 # ====================================
-#python3 dh_calib_motoman_end_of_arm_cameras.py \
-#"../data/left_arm/2019-01-24/stereo_cams_4103130811_4103189394.npy" \
-#"../data/left_arm/2019-01-24/HandEye.npy" \
-#55 \
-#"../data/left_arm/2019-01-24/capture_all/cam_4103130811" \
-#"../data/left_arm/2019-01-24/capture_all/cam_4103189394" \
-#"../data/left_arm/2019-01-24/jsposes_tensors.npy" \
-#"../data/left_arm/2019-01-24/all_vals_tensors.npy" \
-#22 \
-#"results_left_arm/" \
-#"robotModel_leftArm_2019-01-24" \
-#"handEye_leftArm_2019-01-24" \
-#"left"
 
 python3 dh_calib_motoman_end_of_arm_cameras.py \
-"../data/right_arm/2019-02-05/stereo_cams_4103217455_4103235743.npy" \
-"../data/right_arm/2019-02-05/HandEye.npy" \
-55 \
-"../data/right_arm/2019-02-05/capture_all/cam_4103217455" \
-"../data/right_arm/2019-02-05/capture_all/cam_4103235743" \
-"../data/right_arm/2019-02-05/jsposes_tensors.npy" \
-"../data/right_arm/2019-02-05/all_vals_tensors.npy" \
-22 \
-"results_right_arm/" \
-"robotModel_rightArm_2019-02-05" \
-"handEye_rightArm_2019-02-05" \
-"right"
+"../data/left_arm/2019-03-26_front/stereo_cams_4103189394_4103130811_kalibr_corrected_ordering.npy" \
+"../data/left_arm/2019-03-26_front/HandEye_kalibr_corrected_ordering.npy" \
+140 \
+"../data/left_arm/2019-03-26_front/capture_all/cam_4103189394" \
+"../data/left_arm/2019-03-26_front/capture_all/cam_4103130811" \
+"../data/left_arm/2019-03-26_front/jsposes_tensors.npy" \
+"../data/left_arm/2019-03-26_front/all_vals_tensors.npy" \
+20 \
+"results_left_arm/pattern_in_front_140/" \
+"robotModel_v1_alternating_kalibr_corrected_ordering_CHECK" \
+"handEye_v1_alternating_kalibr_corrected_ordering_CHECK" \
+"left" \
+"True" \
+4 \
+1.0 \
+"True" \
+"True" \
+"False" \
+
