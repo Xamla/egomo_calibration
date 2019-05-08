@@ -20,6 +20,9 @@ from cffi import FFI
 import ctypes
 ffi = FFI()
 
+import xacro
+import xml
+
 M_PI = 3.14159265359
 
 
@@ -629,9 +632,10 @@ class Calibration:
 
   # show the reprojection error for all pattern points in all given images
   def showReprojectionError(self, idx, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, number, my_frames=None, my_frames_rectified=None) :
-    print("********************************")
-    print("* Show the reprojection error: *")
-    print("********************************")
+    if my_frames is not None :
+      print("********************************")
+      print("* Show the reprojection error: *")
+      print("********************************")
 
     frames = []
     frames_rectified = []
@@ -711,10 +715,10 @@ class Calibration:
       if my_frames is not None :
         cv.imshow("reprojection error for image {:d}".format(idx[j]), frame)
         cv.waitKey(500)
-        cv.imshow("reprojection error on rectified image {:d}".format(idx[j]), frame_rectified)
-        cv.waitKey(500)
-        #cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs_v1/reprojection_error_img_{:d}.png".format(idx[j]), frame)
-        #cv.imwrite("/home/inga/code/my_python_branch/egomo_calibration/result_imgs_v1/reprojection_error_rectified_img_{:d}.png".format(idx[j]), frame_rectified)
+        #cv.imshow("reprojection error on rectified image {:d}".format(idx[j]), frame_rectified)
+        #cv.waitKey(500)
+        #cv.imwrite("../result_imgs_v1/reprojection_error_img_{:d}.png".format(idx[j]), frame)
+        #cv.imwrite("../result_imgs_v1/reprojection_error_rectified_img_{:d}.png".format(idx[j]), frame_rectified)
     return frames, frames_rectified
 
 
@@ -779,7 +783,121 @@ class Calibration:
       self.showReprojectionError(idxValidation, robotModel, handEye, base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxValidation))
 
 
-  def DHCrossValidate(self, trainTestSplitPercentage, iterations, alternate=False, with_torso_optimization=False, evaluate_only=False) :
+  def write_to_urdf(self, urdf_fn) : 
+    xml_file = open(urdf_fn)
+    doc = xacro.parse(xml_file)
+    joints = doc.getElementsByTagName("joint")
+
+    def overwrite_rpy(joint, theta_value, alpha_value) :
+      for node in joint.childNodes :
+        if node.nodeType == node.ELEMENT_NODE:
+          if node.tagName == "origin" :
+            first_space = node.getAttribute("rpy").find(" ")
+            second_space = first_space+1 + node.getAttribute("rpy")[first_space+1:].find(" ")
+            p = node.getAttribute("rpy")[first_space+1:second_space]
+            y = np.format_float_positional(theta_value)
+            r = np.format_float_positional(alpha_value)
+            rpy = r + " " + p + " " + y
+            node.setAttribute("rpy", rpy)
+            print("origin rpy = ", node.getAttribute("rpy"))
+
+    def overwrite_xyz(joint, d_value, a_value, y_previous) :
+      for node in joint.childNodes :
+        if node.nodeType == node.ELEMENT_NODE:
+          if node.tagName == "origin" :
+            first_space = node.getAttribute("xyz").find(" ")
+            second_space = first_space+1 + node.getAttribute("xyz")[first_space+1:].find(" ")
+            y = node.getAttribute("xyz")[first_space+1:second_space]
+            x = np.format_float_positional(a_value)
+            z = np.format_float_positional(d_value + y_previous) # (The distribution of DH-parameter d back to y and z is not unique.)
+            xyz = x + " " + y + " " + z
+            node.setAttribute("xyz", xyz)
+            print("origin xyz = ", node.getAttribute("xyz"))
+            return float(y)
+
+    print("New urdf settings:")
+    y_previous = 0.0
+    if self.which_arm == "left" :
+      for i in range(0, len(joints)) :
+        if joints[i].getAttribute("name") == "arm_left_joint_1_s" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][0], self.robotModel["dh"][3][0])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][0], self.robotModel["dh"][2][0], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_2_l" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][1], self.robotModel["dh"][3][1])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][1], self.robotModel["dh"][2][1], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_3_e" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][2], self.robotModel["dh"][3][2])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][2], self.robotModel["dh"][2][2], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_4_u" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][3], self.robotModel["dh"][3][3])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][3], self.robotModel["dh"][2][3], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_5_r" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][4], self.robotModel["dh"][3][4])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][4], self.robotModel["dh"][2][4], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_6_b" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][5], self.robotModel["dh"][3][5])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][5], self.robotModel["dh"][2][5], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_7_t" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][6], self.robotModel["dh"][3][6])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][6], self.robotModel["dh"][2][6], y_previous)
+        if joints[i].getAttribute("name") == "arm_left_joint_tool0" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][7], self.robotModel["dh"][3][7])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][7], self.robotModel["dh"][2][7], y_previous)
+    elif self.which_arm == "right" :
+      for i in range(0, len(joints)) :
+        if joints[i].getAttribute("name") == "arm_right_joint_1_s" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][0], self.robotModel["dh"][3][0])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][0], self.robotModel["dh"][2][0], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_2_l" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][1], self.robotModel["dh"][3][1])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][1], self.robotModel["dh"][2][1], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_3_e" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][2], self.robotModel["dh"][3][2])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][2], self.robotModel["dh"][2][2], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_4_u" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][3], self.robotModel["dh"][3][3])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][3], self.robotModel["dh"][2][3], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_5_r" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][4], self.robotModel["dh"][3][4])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][4], self.robotModel["dh"][2][4], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_6_b" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][5], self.robotModel["dh"][3][5])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][5], self.robotModel["dh"][2][5], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_7_t" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][6], self.robotModel["dh"][3][6])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][6], self.robotModel["dh"][2][6], y_previous)
+        if joints[i].getAttribute("name") == "arm_right_joint_tool0" :
+          print(joints[i].getAttribute("name"))
+          overwrite_rpy(joints[i], self.robotModel["dh"][0][7], self.robotModel["dh"][3][7])
+          y_previous = overwrite_xyz(joints[i], self.robotModel["dh"][1][7], self.robotModel["dh"][2][7], y_previous)
+
+    prettyxml = doc.toprettyxml()
+    last_slash = urdf_fn.rfind("/")
+    resulting_urdf_fn = urdf_fn[:last_slash]
+    resulting_urdf_fn = resulting_urdf_fn + "/calibration_result.urdf"
+    resulting_urdf = open(resulting_urdf_fn, "w")
+    resulting_urdf.write(prettyxml)
+
+
+  def DHCrossValidate(self, trainTestSplitPercentage, iterations, alternate=False, with_torso_optimization=False,
+                      optimize_hand_eye=True, optimize_points=True, optimize_robot_model_theta=True,
+                      optimize_robot_model_d=False, optimize_robot_model_a=False, optimize_robot_model_alpha=False,
+                      evaluate_only=False, urdf_fn=None) :
 
     validationErrors = []
     helpers = Xamla3d()
@@ -799,10 +917,10 @@ class Calibration:
     robotPoseWithJointStates = self.forward_kinematic(self.images[my_indices[0]]["jointStates"], robotMod, self.robotModel["joint_direction"])
     print("robot pose calculated with forward kinematic:")
     print(robotPoseWithJointStates)
-    inv_robotPoseWithJointStates = inv(robotPoseWithJointStates)
+    #inv_robotPoseWithJointStates = inv(robotPoseWithJointStates)
     #print("inverse robot pose:")
     #print(inv_robotPoseWithJointStates)
-    inv_pose = self.inv_forward_kinematic(self.images[my_indices[0]]["jointStates"], robotMod, self.robotModel["joint_direction"])
+    #inv_pose = self.inv_forward_kinematic(self.images[my_indices[0]]["jointStates"], robotMod, self.robotModel["joint_direction"])
     #print("inverse robot pose calculated with inverse forward kinematic (with dh_inv):")
     #print(inv_pose)
     print("===========================")
@@ -872,30 +990,11 @@ class Calibration:
       num_points = len(points3d)
       training_error = None
 
-      print("******************************************************************************")
-      print("* Show the reprojection error for all pattern points in all training images: *")
-      print("******************************************************************************")
+      #print("******************************************************************************")
+      #print("* Show the reprojection error for all pattern points in all training images: *")
+      #print("******************************************************************************")
       frames_before, frames_rectified_before = self.showReprojectionError(idxTraining, robotModel, handEye, before_base_to_target, pointsX, pointsY, target_points, intrinsics, len(idxTraining))
 
-      print("******************************************************")
-      print("* All in one optimization (hand-eye and dh together) *")
-      print("******************************************************")
-      #print("intrinsics:")
-      #print(intrinsics)
-      #print("distCoeffs:")
-      #print(distCoeffs)
-      #print("handEyeInv:")
-      #print(handEyeInv)
-      #print("jointStatesOptimized:")
-      #print(jointStatesOptimized)
-      #print("robotModel:")
-      #print(robotModel)
-      #print("points3d:")
-      #print(points3d)
-      #print("observations:")
-      #print(observations)
-      #print("jointPointIndices:")
-      #print(jointPointIndices)
       intrinsics_cdata = ffi.cast("double *", ffi.from_buffer(intrinsics))
       distCoeffs_cdata = ffi.cast("double *", ffi.from_buffer(distCoeffs))
       handEyeInv_cdata = ffi.cast("double *", ffi.from_buffer(handEyeInv))
@@ -909,8 +1008,14 @@ class Calibration:
       if self.which_arm == "right" :
         arm = 1
 
-      if alternate : # Alternating optimiation (theta, hand-eye, theta, hand-eye, ...)
+      if alternate : # Alternating optimiation (DH-parameter, hand-eye, DH-parameter, hand-eye, ...)
+        print("**********************************************************************************")
+        print("* Alternating optimization (DH-parameter, hand-eye, DH-parameter, hand-eye, ...) *")
+        print("**********************************************************************************")
         if i % 2 == 0 : # even (i=0,2,4,...)
+          print("***************************************")
+          print("* Optimization of DH-parameter values *")
+          print("***************************************")
           training_error = clib.optimizeDH(
             intrinsics_cdata,
             distCoeffs_cdata,
@@ -924,22 +1029,25 @@ class Calibration:
             num_points,
             arm,
             with_torso_optimization,
-            False,     # optimize_hand_eye
-            False,     # optimize_points
-            True,      # optimize_robot_model_theta
-            False,     # optimize_robot_model_d
-            False,     # optimize_robot_model_a
-            False,     # optimize_robot_model_alpha
-            False,     # optimize_joint_states
-            False,     # optimize_pp,
-            False,     # optimize_focal_length,
-            False      # optimize_distortion
+            False,                       # optimize_hand_eye
+            optimize_points,             # optimize_points
+            optimize_robot_model_theta,  # optimize_robot_model_theta
+            optimize_robot_model_d,      # optimize_robot_model_d
+            optimize_robot_model_a,      # optimize_robot_model_a
+            optimize_robot_model_alpha,  # optimize_robot_model_alpha
+            False,                       # optimize_joint_states
+            False,                       # optimize_pp,
+            False,                       # optimize_focal_length,
+            False                        # optimize_distortion
           )
-          print("*********************************************")
-          print("Error after (hand-eye and dh) optimization:  ", training_error)
-          print("*********************************************")
+          print("**************************************************")
+          print("Error after optimization of DH-parameter values:  ", training_error)
+          print("**************************************************")
           print("\n")
         else : # odd (i=1,3,5,...)
+          print("****************************")
+          print("* Optimization of hand-eye *")
+          print("****************************")
           training_error = clib.optimizeDH(
             intrinsics_cdata,
             distCoeffs_cdata,
@@ -953,22 +1061,25 @@ class Calibration:
             num_points,
             arm,
             with_torso_optimization,
-            True,      # optimize_hand_eye
-            False,     # optimize_points
-            False,     # optimize_robot_model_theta
-            False,     # optimize_robot_model_d
-            False,     # optimize_robot_model_a
-            False,     # optimize_robot_model_alpha
-            False,     # optimize_joint_states
-            False,     # optimize_pp,
-            False,     # optimize_focal_length,
-            False      # optimize_distortion
+            True,                # optimize_hand_eye
+            optimize_points,     # optimize_points
+            False,               # optimize_robot_model_theta
+            False,               # optimize_robot_model_d
+            False,               # optimize_robot_model_a
+            False,               # optimize_robot_model_alpha
+            False,               # optimize_joint_states
+            False,               # optimize_pp,
+            False,               # optimize_focal_length,
+            False                # optimize_distortion
           )
-          print("*********************************************")
-          print("Error after (hand-eye and dh) optimization:  ", training_error)
-          print("*********************************************")
+          print("***************************************")
+          print("Error after optimization of hand-eye:  ", training_error)
+          print("***************************************")
           print("\n")
       else : # Simultaneous optimization of DH-parameters and hand-eye
+        print("******************************************************")
+        print("* All in one optimization (hand-eye and dh together) *")
+        print("******************************************************")
         training_error = clib.optimizeDH(
           intrinsics_cdata,
           distCoeffs_cdata,
@@ -982,34 +1093,32 @@ class Calibration:
           num_points,
           arm,
           with_torso_optimization,
-          True,      # optimize_hand_eye
-          True,      # optimize_points
-          True,      # optimize_robot_model_theta
-          False,     # optimize_robot_model_d
-          False,     # optimize_robot_model_a
-          False,     # optimize_robot_model_alpha
-          False,     # optimize_joint_states
-          False,     # optimize_pp,
-          False,     # optimize_focal_length,
-          False      # optimize_distortion
+          optimize_hand_eye,           # optimize_hand_eye
+          optimize_points,             # optimize_points
+          optimize_robot_model_theta,  # optimize_robot_model_theta
+          optimize_robot_model_d,      # optimize_robot_model_d
+          optimize_robot_model_a,      # optimize_robot_model_a
+          optimize_robot_model_alpha,  # optimize_robot_model_alpha
+          False,                       # optimize_joint_states
+          False,                       # optimize_pp,
+          False,                       # optimize_focal_length,
+          False                        # optimize_distortion
         )
-        print("*********************************************")
-        print("Error after (hand-eye and dh) optimization:  ", training_error)
-        print("*********************************************")
+        print("***************************")
+        print("Error after optimization:  ", training_error)
+        print("***************************")
         print("\n")
 
-      #if not os.path.isdir("results_leftArm") :
-      #  os.mkdir("results_leftArm")
-      #robotModel_fn = "results_leftArm/robotModel_theta_optimized_results_leftArm_onboard_{:03d}".format(i)
-      #if not os.path.isdir("results_rightArm_onboard") :
-      #  os.mkdir("results_rightArm_onboard")
-      #robotModel_fn = "results_rightArm_onboard/robotModel_theta_optimized_rightArm_onboard_{:03d}".format(i)
       if (self.output_folder is not None) and (self.output_robotModel_filename is not None) :
         if not os.path.isdir(self.output_folder) :
           os.mkdir(self.output_folder)
         robotModel_fn = os.path.join(self.output_folder, (self.output_robotModel_filename + "_{:03d}".format(i)))
         np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
+
+      if urdf_fn is not None :
+        self.write_to_urdf(urdf_fn)
+        print("\n")
         
       offset = np.zeros(shape=(4,8), dtype=np.float64)
       for j in range(0, 4) :

@@ -308,6 +308,19 @@ struct SnavelyReprojection {
     }
     //robot_model_theta_[7] = T(0.0); // theta for t joint is not optimized, here.
 
+    // Keep d[2], d[4] and d[6] fixed, because here we have y-lengths which are added to the next d=z-length
+    //robot_model_d_[2] = T(0.0);
+    //robot_model_d_[4] = T(0.0);
+    //robot_model_d_[6] = T(0.0);
+    // Keep a[1]-a[7] fixed and optimize only a[0] (i.e. x-length from torso joint to shoulder joint)
+    //robot_model_a_[1] = T(0.0);
+    //robot_model_a_[2] = T(0.0);
+    //robot_model_a_[3] = T(0.0);
+    //robot_model_a_[4] = T(0.0);
+    //robot_model_a_[5] = T(0.0);
+    //robot_model_a_[6] = T(0.0);
+    //robot_model_a_[7] = T(0.0);
+
     /*
     std::cout << "robot_model_theta_ :" << std:: endl;
     std::cout << robot_model_theta_[0] << " " << robot_model_theta_[1] << " " << robot_model_theta_[2] << " " << robot_model_theta_[3] << std::endl;

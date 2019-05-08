@@ -39,6 +39,7 @@ patternId = 21
 output_folder = None
 output_robotModel_filename = None
 output_handEye_filename = None
+urdf_fn = None
 which_arm = None
 alternate = False
 runs = 1
@@ -47,6 +48,12 @@ with_torso_movement_in_data = False
 with_torso_optimization = False # makes only sense, if with_torso_movement_in_data is True
 evaluate_only = False
 with_jitter = False
+optimize_hand_eye = True
+optimize_points = True
+optimize_robot_model_theta = True
+optimize_robot_model_d = False
+optimize_robot_model_a = False
+optimize_robot_model_alpha = False
 
 print('Number of arguments:')
 print(len(sys.argv))
@@ -75,36 +82,63 @@ if len(sys.argv) > 10:
 if len(sys.argv) > 11:
   output_handEye_filename = sys.argv[11]
 if len(sys.argv) > 12:
-  which_arm = sys.argv[12]
+  urdf_fn = sys.argv[12]
 if len(sys.argv) > 13:
-  alternate = eval(sys.argv[13])
+  which_arm = sys.argv[13]
 if len(sys.argv) > 14:
-  runs = int(sys.argv[14])
+  alternate = eval(sys.argv[14])
 if len(sys.argv) > 15:
-  train_test_split_percentage = float(sys.argv[15])
+  runs = int(sys.argv[15])
 if len(sys.argv) > 16:
-  with_torso_movement_in_data = eval(sys.argv[16])
+  train_test_split_percentage = float(sys.argv[16])
 if len(sys.argv) > 17:
-  with_torso_optimization = eval(sys.argv[17])
+  with_torso_movement_in_data = eval(sys.argv[17])
 if len(sys.argv) > 18:
-  evaluate_only = eval(sys.argv[18])
+  with_torso_optimization = eval(sys.argv[18])
 if len(sys.argv) > 19:
-  with_jitter = eval(sys.argv[19])
+  evaluate_only = eval(sys.argv[19])
+if len(sys.argv) > 20:
+  with_jitter = eval(sys.argv[20])
+if len(sys.argv) > 21:
+  optimize_hand_eye = eval(sys.argv[21])
+if len(sys.argv) > 22:
+  optimize_points = eval(sys.argv[22])
+if len(sys.argv) > 23:
+  optimize_robot_model_theta = eval(sys.argv[23])
+if len(sys.argv) > 24:
+  optimize_robot_model_d = eval(sys.argv[24])
+if len(sys.argv) > 25:
+  optimize_robot_model_a = eval(sys.argv[25])
+if len(sys.argv) > 26:
+  optimize_robot_model_alpha = eval(sys.argv[26])
 
-stereoCalib = np.load(calibration_path).item()
+stereoCalib = np.load(calibration_path, allow_pickle=True).item()
 intrinsic = stereoCalib['camLeftMatrix']
 distCoeffs = stereoCalib['camLeftDistCoeffs']
+print("calibration_path = ", calibration_path)
+print("number of images: ", number_of_images)
+print("result folder = ", output_folder)
 print("intrinsic:")
 print(intrinsic)
-print(intrinsic.dtype)
+#print(intrinsic.dtype)
 hand_eye = np.load(heye_path)
 print("hand_eye:")
 print(hand_eye)
-print(hand_eye.dtype)
+#print(hand_eye.dtype)
 hand_eye_original = deepcopy(hand_eye)
 print("which_arm:")
 print(which_arm)
-
+print("urdf_fn = ", urdf_fn)
+print("optimize_hand_eye: ", optimize_hand_eye)
+print("optimize_points: ", optimize_points)
+print("optimize_robot_model_theta: ", optimize_robot_model_theta)
+print("optimize_robot_model_d: ", optimize_robot_model_d)
+print("optimize_robot_model_a: ", optimize_robot_model_a)
+print("optimize_robot_model_alpha: ", optimize_robot_model_alpha)
+print("alternating optimization: ", alternate)
+print("with torso movement in data: ", with_torso_movement_in_data)
+print("with torso optimization: ", with_torso_optimization)
+print("with jitter: ", with_jitter)
 
 
 def createMotomanRobotModel(theta, d, a, alpha, which_arm):
@@ -178,19 +212,15 @@ elif choice == "3" :
     sda_fn = "robotModel/part_motoman_sda10d/sda10d_macro.xacro"
   else :
     sda_fn = str(input_var)
-  #print("You chose " + sda_fn)
   print("Please type in file name of arm_macro.xacro")
   input_var = input("(or press \'enter\' to use robotModel/part_motoman_sda10d/arm_macro.xacro): ")
   if input_var == "" :
     arm_fn = "robotModel/part_motoman_sda10d/arm_macro.xacro"
   else :
     arm_fn = str(input_var)
-  #print("You chose " + arm_fn)
 
   # Read file sda10d_macro.xacro or sda10f_marco.xacro
   # ==================================================
-  #fn_1 = "/home/inga/Rosvita/projects/laundrometer/robotModel/part_motoman_sda10d/sda10d_macro.xacro" # sda_fn
-  #fn_1 = "/home/inga/Rosvita/projects/sda10f/robotModel/part_motoman_sda10f/sda10f_macro.xacro" # sda_fn
   fn_1 = sda_fn
   print("Read {:s}:".format(fn_1))
   print("================================================================================================")
@@ -221,34 +251,17 @@ elif choice == "3" :
                 a[0] = int(reflect) * x
                 d[0] = z
                 d[1] = -1.0 * int(reflect) * y
-                if which_arm == "left" :
-                  theta[0] = 0.0
-                elif which_arm == "right" :
-                  theta[0] = -M_PI
-                else :
-                  print("Please choose arm \"left\" or \"right\" in run file.")
                 first_space = node.getAttribute("rpy").find(" ")
-                roll = node.getAttribute("rpy")[:first_space]
-                if roll[:1] == "-" :
-                  r = "-" + roll[roll.find("{")+1:roll.find("}")]
-                else :
-                  r = roll[roll.find("{")+1:roll.find("}")]
-                if r == "-pi" :
-                  alpha[0] = -M_PI
-                elif r == "pi" :
-                  alpha[0] = M_PI
-                elif r == "-pi/2" :
-                  alpha[0] = -M_PI/2.0
-                elif r == "pi/2" :
-                  alpha[0] = M_PI/2.0
-                else :
-                  alpha[0] = 0.0
+                second_space = first_space+1 + node.getAttribute("rpy")[first_space+1:].find(" ")
+                roll = float(node.getAttribute("rpy")[:first_space])
+                pitch = float(node.getAttribute("rpy")[first_space+1:second_space])
+                yaw = float(node.getAttribute("rpy")[second_space+1:])
+                alpha[0] = roll
+                theta[0] = yaw
     print("\n")
 
   # Read file arm_macro.xacro
   # =========================
-  #fn_2 = "/home/inga/Rosvita/projects/laundrometer/robotModel/part_motoman_sda10d/arm_macro.xacro" # arm_fn
-  #fn_2 = "/home/inga/Rosvita/projects/sda10f/robotModel/part_motoman_sda10f/arm_macro.xacro" # arm_fn
   fn_2 = arm_fn
   print("Read {:s}:".format(fn_2))
   print("=============================================================================================")
@@ -263,31 +276,23 @@ elif choice == "3" :
         if node.tagName == "origin" :
           if node.hasAttribute("xyz") and node.hasAttribute("rpy"):
             print("origin xyz = ", node.getAttribute("xyz"), "  rpy = ", node.getAttribute("rpy"))
-            if i > 0 and i < len(joints)-1 :
+            if i > 0 : #and i < len(joints)-1 :
               first_space = node.getAttribute("xyz").find(" ")
               second_space = first_space+1 + node.getAttribute("xyz")[first_space+1:].find(" ")
               x = float(node.getAttribute("xyz")[:first_space])
               y = float(node.getAttribute("xyz")[first_space+1:second_space])
               z = float(node.getAttribute("xyz")[second_space+1:])
+              a[i] = x
               d[i] += z
-              d[i+1] = -1.0 * y
-            if i > 0 :
+              if i < len(joints)-1 :
+                d[i+1] = -1.0 * y
               first_space = node.getAttribute("rpy").find(" ")
-              roll = node.getAttribute("rpy")[:first_space]
-              if roll[:1] == "-" :
-                r = "-" + roll[roll.find("{")+1:roll.find("}")]
-              else :
-                r = roll[roll.find("{")+1:roll.find("}")]
-              if r == "-pi" :
-                alpha[i] = -M_PI
-              elif r == "pi" :
-                alpha[i] = M_PI
-              elif r == "-pi/2" :
-                alpha[i] = -M_PI/2.0
-              elif r == "pi/2" :
-                alpha[i] = M_PI/2.0
-              else :
-                alpha[i] = 0.0
+              second_space = first_space+1 + node.getAttribute("rpy")[first_space+1:].find(" ")
+              roll = float(node.getAttribute("rpy")[:first_space])
+              pitch = float(node.getAttribute("rpy")[first_space+1:second_space])
+              yaw = float(node.getAttribute("rpy")[second_space+1:])
+              alpha[i] = roll
+              theta[i] = yaw
 else :
   print("Improper choice! Please type 1, 2, or 3")
   sys.exit()
@@ -297,6 +302,19 @@ print("d = ", d)
 print("a = ", a)
 print("alpha = ", alpha)
 print("theta = ", theta)
+
+#optimal_DH = np.load("results_left_arm/pattern_in_back_150/v2_allDH_and_heye_opt/robotModel_v2_allDH_and_heye_opt.npy")
+#for i in range(0, 8) :
+#  theta[i] = optimal_DH[0][i]
+#  d[i] = optimal_DH[1][i]
+#  a[i] = optimal_DH[2][i]
+#  alpha[i] = optimal_DH[3][i]
+#print("\n")
+#print("Optimal values:")
+#print("d = ", d)
+#print("a = ", a)
+#print("alpha = ", alpha)
+#print("theta = ", theta)
 
 # Addition of random jitter to the theta start values:
 if with_jitter :
@@ -325,24 +343,32 @@ robotCalibration.stereoCalib = stereoCalib
 imagesLeft = []
 imagesRight = []
 for i in range(0, number_of_images):
-  image_left_fn = left_images_path + "_{:03d}.png".format(i+1)
-  image_right_fn = right_images_path + "_{:03d}.png".format(i+1)
+  image_left_fn = None
+  image_right_fn = None
+  if os.path.exists(left_images_path + "_000.png") :
+    image_left_fn = left_images_path + "_{:03d}.png".format(i)
+    image_right_fn = right_images_path + "_{:03d}.png".format(i)
+  else :
+    image_left_fn = left_images_path + "_{:03d}.png".format(i+1)
+    image_right_fn = right_images_path + "_{:03d}.png".format(i+1)
   image_left = cv.imread(image_left_fn)
   image_right = cv.imread(image_right_fn)
   imagesLeft.append(image_left)
   imagesRight.append(image_right)
 
-jsposes = np.load(joints_path).item()
-all_vals_tensors = np.load(all_joints_path)
+jsposes = np.load(joints_path, allow_pickle=True).item()
 robotPoses = []
 jointValues = []
 for i in range(0, len(imagesLeft)):
-  robotPose = jsposes['recorded_poses'][i]
+  robotPose = np.identity(4)
+  if len(jsposes['recorded_poses']) != 0 :
+    robotPose = jsposes['recorded_poses'][i]
   robotPoses.append(robotPose)
   jointVals = np.zeros(8)
   if with_torso_movement_in_data :
     jointVals[0:8] = jsposes['recorded_joint_values'][i]
   else :
+    all_vals_tensors = np.load(all_joints_path)
     jointVals[0] = all_vals_tensors[0]
     jointVals[1:8] = jsposes['recorded_joint_values'][i]
   jointValues.append(jointVals)
@@ -356,10 +382,10 @@ for i in range(0, len(imagesLeft)):
   imgLeftRectUndist, imgRightRectUndist = helpers.rectifyImages(imagesLeft[i], imagesRight[i], stereoCalib, patternSize)
   found1, point_left_rectified = helpers.findPattern(imgLeftRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
   if not found1 :
-    print("Pattern points could not be found for rectified left camera image {:03d}!!!".format(i))
+    print("Pattern points could not be found for rectified left camera image {:03d}.".format(i))
   found2, point_right_rectified = helpers.findPattern(imgRightRectUndist, cv.CALIB_CB_ASYMMETRIC_GRID + cv.CALIB_CB_CLUSTERING, patternSize)
   if not found2 :
-    print("Pattern points could not be found for rectified right camera image {:03d}!!!".format(i))
+    print("Pattern points could not be found for rectified right camera image {:03d}.".format(i))
   if (found1 and found2) :
     pointsLeft[i] = point_left_rectified
     pointsRight[i] = point_right_rectified
@@ -381,8 +407,9 @@ for i in range(0, len(imagesLeft)):
   if flag == 0 :
     ok = False
     ok = robotCalibration.addStereoImage(imagesLeft[i], imagesRight[i], robotPoses[i], jointValues[i], patternId, pointsLeft[i], pointsRight[i])
-    #ok = robotCalibration.addImage(imagesLeft[i], robotPoses[i], jointValues[i], patternId, points[i])
     if not ok :
       print("addImage failed for image {:d}!!!".format(i))
 
-robotCalibration.DHCrossValidate(train_test_split_percentage, runs, alternate, with_torso_optimization, evaluate_only)
+robotCalibration.DHCrossValidate(train_test_split_percentage, runs, alternate, with_torso_optimization, 
+                                 optimize_hand_eye, optimize_points, optimize_robot_model_theta, optimize_robot_model_d,
+                                 optimize_robot_model_a, optimize_robot_model_alpha, evaluate_only, urdf_fn)

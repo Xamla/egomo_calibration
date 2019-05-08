@@ -12,6 +12,7 @@
 # output folder
 # output filename for optimized robot model
 # output filename for optimized hand-eye
+# filename (with path) of robot.urdf
 # which arm ("left" or "right")
 # alternating optimization (hand-eye, DH, hand-eye, DH, ...)?
 # number of runs
@@ -20,9 +21,15 @@
 # with optimization of torso joint?
 # only evaluation?
 # with jitter on theta start value?
+# optimize hand-eye?
+# optimize pattern points?
+# optimize DH-parameter theta?
+# optimize DH-parameter d?
+# optimize DH-parameter a?
+# optimize DH-parameter alpha?
 
-# Joint offset optimization for theta:
-# ====================================
+# Hand-Eye and DH-Parameter Optimization:
+# =======================================
 
 python3 dh_calib_motoman_end_of_arm_cameras.py \
 "../data/left_arm/2019-03-26_front/stereo_cams_4103189394_4103130811_kalibr_corrected_ordering.npy" \
@@ -34,8 +41,9 @@ python3 dh_calib_motoman_end_of_arm_cameras.py \
 "../data/left_arm/2019-03-26_front/all_vals_tensors.npy" \
 20 \
 "results_left_arm/pattern_in_front_140/" \
-"robotModel_v1_alternating_kalibr_corrected_ordering_CHECK" \
-"handEye_v1_alternating_kalibr_corrected_ordering_CHECK" \
+"robotModel_v1_alternating_kalibr_corrected_ordering" \
+"handEye_v1_alternating_kalibr_corrected_ordering" \
+"../../../../Rosvita/projects/xamla_calibration/robot.urdf" \
 "left" \
 "True" \
 4 \
@@ -43,6 +51,11 @@ python3 dh_calib_motoman_end_of_arm_cameras.py \
 "True" \
 "True" \
 "False" \
+"False" \
+"True" \
+"True" \
+"True" \
+"False" \
+"False" \
 "False"
-
 
