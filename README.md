@@ -90,5 +90,7 @@ cd tmp/calibration/capture_sphere_sampling/
 /home/xamla/git/egomo_calibration/examples/run_data_conversion.sh
 ```
 
+... to be continued ...
+
 
 ### Hand eye optimization
