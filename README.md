@@ -83,10 +83,11 @@ mv /tmp/calibration/<date>_<time>/HandEye.t7 /tmp/calibration/capture_sphere_sam
 ```
 
 ##### Data conversion
-The egomo_calibration algorighm is written in Python and needs .npy files as input files. Thus, you have to convert the lua .t7 files into the .npy format. To do this, go into the "capture_sphere_sampling" folder and call the script /home/xamla/git/egomo_calibration/examples/run_data_conversion.sh:
+The egomo_calibration algorighm is written in Python and needs .npy files as input files. Thus, you have to convert the lua .t7 files into the .npy format. 
+To do this, use the script ``/home/xamla/git/egomo_calibration/examples/run_data_conversion.sh``, i.e. adapt the camera serials within this script, then go into the "capture_sphere_sampling" folder and call the script from there:
 ```
 cd tmp/calibration/capture_sphere_sampling/
-/home/xamla/git/egomo_calibration/examples/run_data_conversion
+/home/xamla/git/egomo_calibration/examples/run_data_conversion.sh
 ```
 
 
