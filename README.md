@@ -56,7 +56,7 @@ Next you have to enter the paths to the previously generated intial guesses for 
 ##### Sphere sampling output folder structure
 Now, you have to prepare your data obtained from the sphere sampling for the robot kinematic calibration task. <br />
 After the sphere sampling is finished the data lies in the folder ``/tmp/calibration/capture_sphere_sampling/``. This folder contains the following files:
-* The 100-200 captured images of the calibration target for camera 1 and 2 (cam_<serial1>_001.png, ..., cam_<serial1>_200.png, cam_<serial2>_001.png, ..., cam_<serial2>_200.png)
+* The 100-200 captured images of the calibration target for camera 1 and 2 (``cam_<serial1>_001.png``, ..., ``cam_<serial1>_200.png``, ``cam_<serial2>_001.png``, ..., ``cam_<serial2>_200.png``)
 * The robot poses and joint configurations (jsposes.t7 or jsposes_tensors.t7, respectively) of the relevant move group
 * The starting pose and joint configuration of the complete robot (all_vals.t7 or all_vals_tensors.t7, respectively)
   (This is only needed to obtain the static torso position, if the torso is not moved, i.e. does not belong to the relevant move group.)
