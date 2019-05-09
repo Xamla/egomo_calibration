@@ -26,8 +26,10 @@ ROS:
 Installation of ROS (e.g. [ROS Melodic](http://wiki.ros.org/melodic/Installation/Ubuntu))
 (to be able to import "xacro" to read dh-parameters from urdf)
 
-In egomo_calibration:
-=====================
+egomo_calibration:
+==================
+* git clone -b egomo_calibration_py --single-branch https://github.com/Xamla/egomo_calibration.git
+* cd egomo_calibration
 * cmake -E make_directory build
 * cd build
 * cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(PREFIX)"
