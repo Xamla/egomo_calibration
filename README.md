@@ -79,7 +79,7 @@ When you have to enter the name of the folder containing the "jsposes.t7" file, 
 Finally, move the results of this calibration into the sphere sampling output folder:
 ```
 mv /tmp/calibration/<date>_<time>/stereo_cams_<serial1>_<serial2>.t7 /tmp/calibration/capture_sphere_sampling/
-mv /tmp/calibration/HandEye.t7 /tmp/calibration/capture_sphere_sampling/
+mv /tmp/calibration/<date>_<time>/HandEye.t7 /tmp/calibration/capture_sphere_sampling/
 ```
 
 ##### Data conversion
