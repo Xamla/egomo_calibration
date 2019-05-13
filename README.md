@@ -89,7 +89,9 @@ Thereto, first adapt the corresponding start script (``/home/xamla/git/egomo_cal
 you have to adapt the paths to your input data, the number of captured images, the ID of the used circle pattern,
 the output file names, the parameters you want to optimize, etc. A detailed list of these input arguments is given at the beginning of the start script.
 
-Then, with the terminal go into the folder containing the start script and call the script from there:
+> **_NOTE:_**  The argument "alternating optimization" means that DH-parameters and hand-eye are repeatedly optimized after each other. Thus this argument should only be "True", if "optimize hand-eye" is set to "True". Moreover, "with_torso_optimization" should only be set to "True", if "with_torso_movement_in_data" is also "True", because if there is no torso movement within the data, the torso joint cannot be optimized.
+
+Next, with the terminal go into the folder containing the start script and call the script from there:
 ```
 cd /home/xamla/git/egomo_calibration/examples/
 ./run_dh_calib_motoman_end_of_arm_cameras.sh
@@ -98,13 +100,8 @@ or:
 ```
 ./run_dh_calib_motoman_end_of_arm_cameras_v2.sh
 ```
-The first variant uses an average of the 3d circle pattern as initial guess. In more detail, for each image the 3d pattern points in camera coordinates are calculated with help of stereo triangulation and transformed into base coordinates by multiplication with the inverse hand-eye and robot pose matrix. Then each circle point position is averaged for all ~200 captured images and the resulting average circle point pattern is taken as initial guess for the ground truth. I.e. in the objective function calculating the reprojection error for a new robot kinematic and hand-eye, the corresponding new circle point is compared with a ground truth circle point from this averaged pattern.
+The first variant uses an average of the 3d circle pattern as initial guess. In more detail, for each stereo image pair the 3-dimensional pattern points in camera coordinates are calculated by triangulation and transformed into base coordinates by multiplication with the robot pose and hand-eye matrix. Then each 3d circle point position is averaged for all ~200 captured image pairs and the resulting average circle point pattern is taken as ground truth for calculating the reprojection error. In the reprojection error calculation each observed 2d pattern point is compared to the corresponding ground truth pattern point, which is the previously calculated average 3d pattern point projected back into 2d by using the current hand-eye and robot kinematic. (Note, that by setting "optimize points" to "True", the averaged pattern points may also be optimized.)
 
-The second variant (v2) calculates a reprojection error, where each circle pattern point is compared with each other circle pattern point at the same position in the pattern and for all ~200 images.
+The second variant (v2) calculates the reprojection error by comparing each circle pattern point with each other circle pattern point at the same position in the pattern for all ~200 images. Pattern points are in 3d and transformed into base coordinates with help of the current hand-eye and robot kinematic. This second variant should be more precise, but also takes more time.
 
-
-
-... to be continued ...
-
-
-### Hand eye optimization
+As result, the program writes the optimized robot model and hand-eye into .npy files. Moreover, an urdf with the optimized values is written into calibration_result.urdf. Copy this urdf into your current project then close and reopen your project to apply the optimized values of the new urdf. Moreover, publish the optimized hand-eye into the world view or simply overwrite the corresponding values of an already published hand-eye.
