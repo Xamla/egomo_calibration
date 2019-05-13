@@ -17,7 +17,7 @@ For all robot kinematic and hand-eye calibrations one of our [circle patterns wi
 For a high-quality print of one of these patterns contact http://xamla.com/en/.
 
 
-### Capturing calibration data via automatic sphere sampling
+### Capturing calibration input data via automatic sphere sampling
 
 Automatic sphere sampling is performed via the [auto_calibration](https://github.com/Xamla/auto_calibration/) package of Rosvita (in Rosvita under ``/home/xamla/Rosvita.Control/lua/auto_calibration/``).
 
@@ -44,16 +44,14 @@ Choose the option e (end-of-arm camera setup).
 After that, you have to enter the number of capture poses you want to sample. 
 In order to obtain good calibration results, you should choose a rather large number of about 100-200 poses.
 
-Next you have to enter the paths to the previously generated intial guesses for the hand-eye calibration (e.g. ``/tmp/calibration/<data>_<time>/HandEye.t7``) and for the stereo calibration (e.g. ``/tmp/calibration/<data>_<time>/stereo_cams_<serial1>_<serial2>.t7``). Then after accepting the "identified target point" by pressing "enter" the sphere sampling will begin, i.e. the robot will start moveing and recording images and poses.
+Next you have to enter the paths to the previously generated intial guesses for the hand-eye calibration (e.g. ``/tmp/calibration/<date>_<time>/HandEye.t7``) and for the stereo calibration (e.g. ``/tmp/calibration/<date>_<time>/stereo_cams_<serial1>_<serial2>.t7``). Then after accepting the "identified target point" by pressing "enter" the sphere sampling will begin, i.e. the robot will start moveing and recording images and poses.
 
-> **_NOTE:_**  Make sure, that all collision objects in your robot's work space are modelled carefully (with safety margin), before starting the sphere sampling. The robot will move relatively fast using moveit and collision check. However, collisions can only be avoided for correctly modelled collision objects.
+> **_NOTE:_**  Make sure, that all collision objects in your robot's work space are modeled carefully (with safety margin), before starting the sphere sampling. The robot will move relatively fast using MoveIt and collision check. However, collisions can only be avoided for correctly modeled collision objects.
 
 
-### Robot kinematic calibration
+### Further preparation of the calibration input data
 
-#### Input data preparation
-
-##### Sphere sampling output folder structure
+#### Sphere sampling output folder structure
 Now, you have to prepare your data obtained from the sphere sampling for the robot kinematic calibration task. <br />
 After the sphere sampling is finished the data lies in the folder ``/tmp/calibration/capture_sphere_sampling/``. This folder contains the following files:
 * The 100-200 captured images of the calibration target for camera 1 and 2 (``cam_<serial1>_001.png``, ..., ``cam_<serial1>_200.png``, ``cam_<serial2>_001.png``, ..., ``cam_<serial2>_200.png``)
@@ -63,13 +61,13 @@ After the sphere sampling is finished the data lies in the folder ``/tmp/calibra
   
 > **_NOTE:_**  The ``/tmp`` location is a temporary one. If you want to save your sphere sampling data permanently, you have to move it e.g. into your project folder!
 
-##### Improvement of stereo camera and hand-eye input data
+#### Improvement of stereo camera and hand-eye input data
 Now, with the 200 sampled images and robot poses, you first should determine an improved stereo calibration, as well as an improved initial hand-eye matrix. Thereto, simply copy the captured images into a folder ``/tmp/calibration/capture/`` and run the camera and hand-eye calibration of the package [auto_calibration](https://github.com/Xamla/auto_calibration):
 ```
 cd /tmp/calibration/; mkdir capture
 cp -r capture_sphere_sampling/*.png capture/
 cd /home/xamla/Rosvita.Control/projects/<your-project-folder>/
-th ../../lua/auto_calibration/runCalibration.lua -cfg <your-config>.t7
+th ../../lua/auto_calibration/runCalibration.lua -cfg <your_configuration_file>.t7
 a Calibrate camera
 s Save calibration
 b Hand-eye calibration
@@ -82,13 +80,33 @@ mv /tmp/calibration/<date>_<time>/stereo_cams_<serial1>_<serial2>.t7 /tmp/calibr
 mv /tmp/calibration/<date>_<time>/HandEye.t7 /tmp/calibration/capture_sphere_sampling/
 ```
 
-##### Data conversion
-The egomo_calibration algorighm is written in Python and needs .npy files as input files. Thus, you have to convert the lua .t7 files into the .npy format. 
-To do this, use the script ``/home/xamla/git/egomo_calibration/examples/run_data_conversion.sh``, i.e. adapt the camera serials within this script, then go into the "capture_sphere_sampling" folder and call the script from there:
+#### Data conversion
+The egomo_calibration algorighm is written in Python and needs numpy arrays (.npy files) as input files. Thus, you have to convert the lua .t7 files into the .npy format. 
+To do this, use the script ``/home/xamla/git/egomo_calibration/examples/run_data_conversion.sh``, i.e. adapt the camera serials within this script, then go into your data folder (``capture_sphere_sampling``) and call the script from there:
 ```
-cd tmp/calibration/capture_sphere_sampling/
+cd /tmp/calibration/capture_sphere_sampling/
 /home/xamla/git/egomo_calibration/examples/run_data_conversion.sh
 ```
+
+### Robot kinematic calibration
+
+Now, you can run the robot kinematic calibration with the previously captured and prepared input data.
+Thereto, first adapt the corresponding start script (``/home/xamla/git/egomo_calibration/examples/run_dh_calib_motoman_end_of_arm_cameras.sh`` or ``/home/xamla/git/egomo_calibration/examples/run_dh_calib_motoman_end_of_arm_cameras_v2.sh``), i.e.
+you have to adapt the paths to your input data, the number of captured images, the ID of the used circle pattern,
+the output file names, the parameters you want to optimize, etc. A detailed list of these input arguments is given at the beginning of the start script.
+
+Then, with the terminal go into the folder containing the start script and call the script from there:
+```
+cd /home/xamla/git/egomo_calibration/examples/
+./run_dh_calib_motoman_end_of_arm_cameras.sh
+```
+or:
+```
+./run_dh_calib_motoman_end_of_arm_cameras_v2.sh
+```
+
+
+
 
 ... to be continued ...
 
