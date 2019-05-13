@@ -5,12 +5,6 @@ It is written in Python and C++ and uses [Ceres](http://ceres-solver.org/) to op
 Moreover, it is part of the [Rosvita](http://www.rosvita.com/) robot programming environment.
 
 
-#### Major features are:
-
-1. [Robot kinematic calibration (by optimizing DH-parameters)](#robot-kinematic-calibration)
-2. [Hand-Eye optimization (starting from an initial guess)](#hand-eye-optimization)
-
-
 #### Calibration pattern requirements:
 
 For all robot kinematic and hand-eye calibrations one of our [circle patterns with ids](https://github.com/Xamla/auto_calibration/blob/master/Patterns_with_ID.pdf) (**Patterns_with_ID.pdf**) has to be used.
@@ -104,7 +98,9 @@ or:
 ```
 ./run_dh_calib_motoman_end_of_arm_cameras_v2.sh
 ```
+The first variant uses an average of the 3d circle pattern as initial guess. In more detail, for each image the 3d pattern points in camera coordinates are calculated with help of stereo triangulation and transformed into base coordinates by multiplication with the inverse hand-eye and robot pose matrix. Then each circle point position is averaged for all ~200 captured images and the resulting average circle point pattern is taken as initial guess for the ground truth. I.e. in the objective function calculating the reprojection error for a new robot kinematic and hand-eye, the corresponding new circle point is compared with a ground truth circle point from this averaged pattern.
 
+The second variant (v2) calculates a reprojection error, where each circle pattern point is compared with each other circle pattern point at the same position in the pattern and for all ~200 images.
 
 
 
