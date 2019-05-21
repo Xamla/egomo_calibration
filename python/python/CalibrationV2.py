@@ -807,7 +807,7 @@ class CalibrationV2:
 
       if (self.output_folder is not None) and (self.output_robotModel_filename is not None) :
         if not os.path.isdir(self.output_folder) :
-          os.mkdir(self.output_folder)
+          os.makedirs(self.output_folder)
         robotModel_fn = os.path.join(self.output_folder, (self.output_robotModel_filename + "_{:03d}".format(i)))
         np.save(robotModel_fn, robotModel)
       self.robotModel["dh"] = robotModel
